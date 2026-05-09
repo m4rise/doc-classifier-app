@@ -1,0 +1,28 @@
+{
+  "name": "doc-classifier-app",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Monorepo for doc-classifier-app (NestJS + Vue 3)",
+  "scripts": {
+    "dev:backend": "npm --prefix backend run start:dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build": "npm --prefix backend run build && npm --prefix frontend run build",
+    "lint": "npm --prefix backend run lint && npm --prefix frontend run lint",
+    "test": "npm --prefix backend run test && npm --prefix frontend run test:unit -- --run",
+    "test:e2e": "npm --prefix backend run test:e2e && npm --prefix frontend run test:e2e",
+    "format": "npm --prefix backend run format && npm --prefix frontend run format",
+    "prepare": "husky",
+    "lint-staged": "lint-staged",
+    "check": "npm run lint && npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">=24.0.0 <25"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.0",
+    "@commitlint/config-conventional": "^21.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.3",
+    "prettier": "^3.8.3"
+  }
+}
