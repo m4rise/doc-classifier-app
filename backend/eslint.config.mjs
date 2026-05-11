@@ -38,6 +38,24 @@ export default tseslint.config(
           message:
             'prisma.$queryRawUnsafe is forbidden (SQL injection risk). Use prisma.$queryRaw`...` tagged template instead.',
         },
+        {
+          selector:
+            "CallExpression[callee.computed=true][callee.property.value='$queryRawUnsafe']",
+          message:
+            'prisma.$queryRawUnsafe is forbidden (SQL injection risk). Use prisma.$queryRaw`...` tagged template instead.',
+        },
+        {
+          selector:
+            "ChainExpression > CallExpression[callee.property.name='$queryRawUnsafe']",
+          message:
+            'prisma.$queryRawUnsafe is forbidden (SQL injection risk). Use prisma.$queryRaw`...` tagged template instead.',
+        },
+        {
+          selector:
+            "ChainExpression > CallExpression[callee.computed=true][callee.property.value='$queryRawUnsafe']",
+          message:
+            'prisma.$queryRawUnsafe is forbidden (SQL injection risk). Use prisma.$queryRaw`...` tagged template instead.',
+        },
       ],
     },
   },
