@@ -46,8 +46,9 @@ describe('e2e', () => {
       return request(app.getHttpServer())
         .get('/health')
         .expect(200)
-        .expect((res) => {
-          expect(res.body.status).toBe('ok');
+        .expect((res: { body: unknown }) => {
+          const body = res.body as { status: string };
+          expect(body.status).toBe('ok');
         });
     });
 
