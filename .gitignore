@@ -16,6 +16,9 @@ backend/.env
 backend/.env.*
 frontend/.env
 frontend/.env.*
+# Allow .env.example files to be committed
+!.env.example
+!**/.env.example
 
 # Logs
 *.log

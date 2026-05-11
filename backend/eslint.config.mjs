@@ -30,6 +30,33 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       'prettier/prettier': ['error', { endOfLine: 'auto' }],
+      // RF-06: $queryRawUnsafe is forbidden — use prisma.$queryRaw tagged template only
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "CallExpression[callee.property.name='$queryRawUnsafe']",
+          message:
+            'prisma.$queryRawUnsafe is forbidden (SQL injection risk). Use prisma.$queryRaw`...` tagged template instead.',
+        },
+        {
+          selector:
+            "CallExpression[callee.computed=true][callee.property.value='$queryRawUnsafe']",
+          message:
+            'prisma.$queryRawUnsafe is forbidden (SQL injection risk). Use prisma.$queryRaw`...` tagged template instead.',
+        },
+        {
+          selector:
+            "ChainExpression > CallExpression[callee.property.name='$queryRawUnsafe']",
+          message:
+            'prisma.$queryRawUnsafe is forbidden (SQL injection risk). Use prisma.$queryRaw`...` tagged template instead.',
+        },
+        {
+          selector:
+            "ChainExpression > CallExpression[callee.computed=true][callee.property.value='$queryRawUnsafe']",
+          message:
+            'prisma.$queryRawUnsafe is forbidden (SQL injection risk). Use prisma.$queryRaw`...` tagged template instead.',
+        },
+      ],
     },
   },
 );
