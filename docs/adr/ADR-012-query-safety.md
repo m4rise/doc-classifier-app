@@ -16,5 +16,3 @@ Interdire `$queryRawUnsafe`; autoriser uniquement `$queryRaw` paramétré.
 
 - Surface SQL injection réduite.
 - Règles lint obligatoires.
-
-postgresql://neondb_owner:npg_Dx6JHgUVRaZ8@ep-icy-smoke-ab1x9y66.eu-west-2.aws.neon.tech/neondb?sslmode=require
