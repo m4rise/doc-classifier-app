@@ -4,46 +4,42 @@ This runbook tracks provider setup for `doc-classifier-app`.
 
 ## 1. Google Cloud Platform
 
-- [ ] Project created: `doc-classifier-app`
-- [ ] APIs enabled:
-  - [ ] Cloud Run Admin API
-  - [ ] Artifact Registry API
-  - [ ] Cloud Storage API
-  - [ ] Secret Manager API
-  - [ ] IAM API
-- [ ] GCS bucket created: `doc-classifier-app-documents`
-  - [ ] Uniform bucket-level access enabled
-  - [ ] Public access prevention enabled
-- [ ] CI service account created: `github-actions@doc-classifier-app.iam.gserviceaccount.com`
-- [ ] IAM roles granted:
-  - [ ] Cloud Run Admin
-  - [ ] Storage Admin
-  - [ ] Artifact Registry Writer
-  - [ ] Secret Manager Accessor
-- [ ] Workload Identity Federation configured (OIDC)
+- [x] Project created: `doc-classifier-app`
+- [x] APIs enabled:
+  - [x] Cloud Run Admin API
+  - [x] Artifact Registry API
+  - [x] Cloud Storage API
+  - [x] Secret Manager API
+  - [x] IAM API
+- [x] GCS bucket created: `doc-classifier-documents`
+  - [x] Uniform bucket-level access enabled
+  - [x] Public access prevention enabled
+- [x] CI service account created: `github-actions@doc-classifier-app.iam.gserviceaccount.com`
+- [x] IAM roles granted:
+  - [x] Cloud Run Admin
+  - [x] Storage Admin
+  - [x] Artifact Registry Writer
+  - [x] Secret Manager Accessor
+- [x] Workload Identity Federation configured (OIDC)
 
 ## 2. Neon.tech
 
-- [ ] Project created: `doc-classifier-app`
-- [ ] Branches created:
-  - [ ] `main` (prod)
-  - [ ] `staging`
-- [ ] Connection strings generated:
-  - [ ] `DATABASE_URL_STAGING`
-  - [ ] `DATABASE_URL_PROD`
-- [ ] Connection string includes params:
-  - [ ] `connection_limit=2`
-  - [ ] `pool_timeout=10`
+- [x] Project created: `doc-classifier-app`
+- [x] Branches created:
+  - [x] `main` (prod)
+- [x] Connection strings generated:
+  - [x] `DATABASE_URL`
+- [x] Connection string includes params:
+  - [x] `connection_limit=2`
+  - [x] `pool_timeout=10`
 
 ## 3. Firebase
 
 Target architecture: 3 projects (dev/staging/prod).
 
-- [ ] `doc-classifier-app-dev`
-- [ ] `doc-classifier-app-staging`
-- [ ] `doc-classifier-app-prod`
-- [ ] Hosting initialized on each project (SPA rewrite to `/index.html`)
-- [ ] Firebase service account JSON ready for CI secret
+- [x] `doc-classifier-app`
+- [x] Hosting initialized on each project (SPA rewrite to `/index.html`)
+- [x] Firebase service account JSON ready for CI secret
 
 MVP optimization (optional):
 
