@@ -1,7 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from 'nestjs-pino';
 import { AppModule } from './app.module';
-import './instrument';
+import './instrument'; // must be first — OTel patches modules before they are loaded
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
