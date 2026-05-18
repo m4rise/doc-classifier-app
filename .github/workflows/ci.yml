@@ -168,6 +168,3 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: HIGH,CRITICAL
-          # Skip npm's own bundled node_modules (part of node:24-alpine base image,
-          # not our application code — we cannot update those deps).
-          skip-dirs: /usr/local/lib/node_modules/npm
