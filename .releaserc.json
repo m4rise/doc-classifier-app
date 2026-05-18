@@ -1,15 +1,23 @@
 {
   "branches": ["main"],
+  "tagFormat": "v${version}",
+  "preset": "conventionalcommits",
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    "@semantic-release/changelog",
+    [
+      "@semantic-release/changelog",
+      {
+        "changelogFile": "CHANGELOG.md"
+      }
+    ],
     "@semantic-release/github",
-    "@semantic-release/git"
-  ],
-  "preset": "conventionalcommits",
-  "tagFormat": "v${version}",
-  "changelogFile": "CHANGELOG.md",
-  "generateNotes": true,
-  "ci": true
+    [
+      "@semantic-release/git",
+      {
+        "assets": ["CHANGELOG.md"],
+        "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+      }
+    ]
+  ]
 }
