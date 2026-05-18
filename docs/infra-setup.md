@@ -75,46 +75,56 @@ MVP optimization (optional):
 
 ## 6. Google AI Studio
 
-- [ ] Gemini API key created
-- [ ] Key stored in GCP Secret Manager and GitHub Secrets
-- [ ] Free-tier quotas reviewed
+- [x] Gemini API key created
+- [x] Key stored in GCP Secret Manager and GitHub Secrets
+- [x] Free-tier quotas reviewed
 
 ## 7. Environment Variables & Secrets (Reference)
 
-### GCP Secret Manager / GitHub Actions Secrets
+### GCP Secret Manager — runtime secrets `[SECRET]`
 
-- `DATABASE_URL`
+Fetched by Cloud Run at startup via `--set-secrets`.
+Also fetched by GitHub Actions via WIF during the deploy step — no manual mirroring needed.
+
+- `DATABASE_URL` — Neon prod connection string
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
 - `AES_ENCRYPTION_KEY`
 - `GEMINI_API_KEY`
+- `MCP_API_KEY`
+- `SENTRY_DSN`
+- `OTEL_EXPORTER_OTLP_ENDPOINT`
+- `GRAFANA_INSTANCE_ID`
+- `GRAFANA_API_KEY` — Access Policy token (scopes: metrics:write, traces:write, logs:write)
+
+### Cloud Run `--set-env-vars` — non-sensitive config `[CONFIG]`
+
+Not stored in Secret Manager. Passed directly at deploy time.
+
 - `GCS_BUCKET_NAME`
 - `GCS_PROJECT_ID`
-- `SENTRY_DSN`
-- `MCP_API_KEY`
-- `OTEL_EXPORTER_OTLP_ENDPOINT`
-- `GRAFANA_API_KEY`
-- `GRAFANA_INSTANCE_ID`
 - `OTEL_SERVICE_NAME`
 - `OTEL_RESOURCE_ATTRIBUTES`
 - `OTEL_TRACES_EXPORTER`
 - `OTEL_METRICS_EXPORTER`
 - `OTEL_LOGS_EXPORTER`
+- `THROTTLE_TTL`
+- `THROTTLE_LIMIT`
 - `CONFIDENCE_THRESHOLD`
 - `FILE_SIZE_LIMIT_MB`
-- `FILE_SIZE_LIMIT_MB`
 
-### GitHub Actions Secrets
+### GitHub Actions Secrets — CI/CD bootstrap only
 
-- `WIF_PROVIDER`
-- `WIF_SERVICE_ACCOUNT`
-- `DATABASE_URL_STAGING`
-- `DATABASE_URL_PROD`
-- `FIREBASE_SERVICE_ACCOUNT`
-- (plus all secrets listed above as needed for CI/CD)
+These cannot be fetched from GCP Secret Manager — they are needed before any GCP auth.
+
+- `WIF_PROVIDER` — GCP OIDC provider resource name
+- `WIF_SERVICE_ACCOUNT` — service account email for OIDC impersonation
+- `DATABASE_URL_STAGING` — `prisma migrate deploy` on staging
+- `DATABASE_URL_PROD` — `prisma migrate deploy` on prod
+- `FIREBASE_SERVICE_ACCOUNT` — Firebase Hosting deploy (service account JSON)
 
 ## 8. Final Verification
 
-- [ ] `backend/.env.example` matches required variable names
-- [ ] No secret values committed
-- [ ] Team can reproduce setup using this runbook only
+- [x] `backend/.env.example` matches required variable names
+- [x] No secret values committed
+- [x] Team can reproduce setup using this runbook only
