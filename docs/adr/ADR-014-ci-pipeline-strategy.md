@@ -12,6 +12,7 @@ Story 1.5 introduced a GitHub Actions CI pipeline to gate merges on quality chec
 ### 1. Trigger strategy: `pull_request` + `push: branches: [main]`
 
 **Decision:** Run CI on two events only:
+
 - `pull_request` targeting `main` → gates all merges
 - `push` to `main` → validates the final squash commit post-merge
 
@@ -41,6 +42,7 @@ Distroless images contain no shell, no package manager, and no npm — the entir
 **Rejected:** `trivy.ignore` / `skip-dirs` suppression — hides the problem without fixing it.
 
 **Distroless specifics:**
+
 - Base image: `gcr.io/distroless/nodejs24-debian13`
 - Built-in non-root user: `nonroot` (uid 65532) — no need to `adduser`
 - Entrypoint is `node` — `CMD` receives only the script path: `["dist/main.js"]`
@@ -58,28 +60,32 @@ ignore-unfixed: true
 
 ## CI Job Summary
 
-| Job | What it checks |
-|-----|----------------|
-| `lint` | ESLint (backend + frontend) |
-| `test-unit` | Jest (backend, `--runInBand`) + Vitest (frontend, `--run`) |
-| `test-integration` | Jest e2e with a real `postgres:16-alpine` service container |
-| `security` | `npm audit --audit-level=critical` + Docker build + Trivy image scan |
+| Job                | What it checks                                                       |
+| ------------------ | -------------------------------------------------------------------- |
+| `lint`             | ESLint (backend + frontend)                                          |
+| `test-unit`        | Jest (backend, `--runInBand`) + Vitest (frontend, `--run`)           |
+| `test-integration` | Jest e2e with a real `postgres:16-alpine` service container          |
+| `security`         | `npm audit --audit-level=critical` + Docker build + Trivy image scan |
 
 All jobs use `jdx/mise-action@v3` to read `.mise.toml` (Node 24 pin) + `actions/setup-node@v4` for npm cache.
 
 ## Procedures
 
 ### Adding a new CI check
+
 1. Add a new `job` in `.github/workflows/ci.yml`
 2. Add `jdx/mise-action@v3` + `actions/setup-node@v4` steps at the top (copy from an existing job)
 3. If the check must block merges: add it to branch protection required checks (GitHub → Settings → Branches → main → Edit)
 
 ### Trivy false positive / accepted risk
+
 If a HIGH/CRITICAL CVE appears that is genuinely unfixable and accepted:
+
 1. Create `.trivyignore` at repo root with the CVE ID and a comment justifying the acceptance
 2. Document the acceptance in this ADR
 
 ### Updating the Node version
+
 1. Update `.mise.toml` at repo root: `node = "X.Y.Z"`
 2. Update `gcr.io/distroless/nodejsXX-debian13` in `backend/Dockerfile` runner stage
 3. The CI reads `.mise.toml` automatically via `jdx/mise-action@v3`
