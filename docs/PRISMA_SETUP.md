@@ -62,3 +62,29 @@
 - [Prisma + NestJS](https://www.prisma.io/docs/guides/frameworks/nestjs)
 - [Prisma Migrate — team workflow](https://www.prisma.io/docs/guides/database/schema-changes)
 - [Deploying database changes](https://www.prisma.io/docs/orm/prisma-client/deployment/deploy-database-changes-with-prisma-migrate)
+
+---
+
+## Convention : Emplacement du client Prisma généré
+
+- **Le client Prisma TypeScript généré est toujours placé dans `backend/src/generated/prisma/`.**
+  - Ce chemin est configuré dans `prisma/schema.prisma` via `output = "../src/generated/prisma"`.
+  - L'import dans le code se fait depuis ce dossier, jamais depuis `node_modules` (Prisma 7+).
+- **Jamais d'import Prisma dans `domain/` ou `application/`** : le client généré n'est utilisé que dans l'infrastructure (ex : `prisma.service.ts`). Cette règle est enforced par ESLint et fait partie des conventions clean architecture du projet.
+- **Pourquoi ce choix ?**
+  - Respect de la clean architecture : le code généré n'est ni dans le domaine, ni dans l'application, ni dans l'infrastructure métier, mais dans un dossier dédié, explicitement ignoré par git et Docker.
+  - Alignement avec les conventions monorepo : tous les artefacts générés sont centralisés sous `src/generated/` pour éviter la confusion et faciliter le nettoyage.
+  - Simplifie la configuration Docker, CI/CD et NestJS (voir `nest-cli.json` assets).
+- **Enforcement :**
+  - `src/generated/` est ignoré dans `.gitignore` et `.dockerignore`.
+  - Le client doit être regénéré après chaque modification du schéma ou après un pull/clone (`npm run db:generate`).
+  - Les scripts de build, CI et Dockerfile copient explicitement ce dossier dans l'image finale.
+- **Pas de customisation complexe :**
+  - Si ce choix impose trop de configuration ou de hacks, il pourra être réévalué, mais il est aligné avec les standards Prisma 7 et clean architecture.
+
+**Référence :**
+
+- [ADR-013-opentelemetry-grafana-cloud.md](adr/ADR-013-opentelemetry-grafana-cloud.md) (pour l'architecture générale)
+- [backend/prisma.config.ts](../backend/prisma.config.ts)
+- [backend/prisma/schema.prisma](../backend/prisma/schema.prisma)
+- [backend/src/shared/infrastructure/database/prisma.service.ts](../backend/src/shared/infrastructure/database/prisma.service.ts)
