@@ -6,6 +6,10 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+# Prisma 7: generate the client (src/generated/prisma/ is gitignored — must be built).
+# DATABASE_URL is only read by prisma.config.ts for DB operations (migrate/deploy),
+# not for generate — a dummy value is enough for code generation.
+RUN DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy npx prisma generate
 RUN npm run build && npm prune --omit=dev
 
 # ── Stage 2: runner ───────────────────────────────────────────────────────────

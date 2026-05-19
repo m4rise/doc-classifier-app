@@ -27,6 +27,12 @@ jobs:
         run: npm ci
         working-directory: backend
 
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
       - name: Lint backend
         run: npm run lint
         working-directory: backend
@@ -54,6 +60,12 @@ jobs:
       - name: Install backend deps
         run: npm ci
         working-directory: backend
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
       - name: Backend unit tests
         run: npm run test -- --runInBand
@@ -85,7 +97,7 @@ jobs:
           --health-timeout 5s
           --health-retries 5
     env:
-      DATABASE_URL: postgresql://test:test@localhost:5432/test_db?connection_limit=2&pool_timeout=10
+      DATABASE_URL: postgresql://test:test@localhost:5432/test_db
       NODE_ENV: test
     steps:
       - uses: actions/checkout@v4
@@ -96,6 +108,14 @@ jobs:
 
       - name: Install backend deps
         run: npm ci
+        working-directory: backend
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+
+      - name: Run DB migrations
+        run: npm run db:migrate:deploy
         working-directory: backend
 
       - name: Run integration tests
