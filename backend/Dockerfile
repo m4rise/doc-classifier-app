@@ -24,6 +24,7 @@ WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/generated/prisma ./src/generated/prisma
 
 USER nonroot
 EXPOSE 3000
