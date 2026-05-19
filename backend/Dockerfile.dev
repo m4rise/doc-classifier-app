@@ -7,6 +7,11 @@ RUN npm ci
 
 COPY . .
 
+# Generate Prisma client at build time.
+# prisma generate only reads schema.prisma (no real DB connection needed).
+# A placeholder URL is required because prisma.config.ts calls env('DATABASE_URL').
+RUN DATABASE_URL=postgresql://placeholder:placeholder@placeholder/placeholder npx prisma generate
+
 EXPOSE 3000
 
 CMD ["npm", "run", "start:dev"]

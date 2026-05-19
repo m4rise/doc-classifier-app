@@ -6,6 +6,12 @@ COPY package*.json ./
 RUN npm ci
 
 COPY . .
+# Prisma 7: generate the TypeScript client from schema (src/generated/prisma/ is gitignored).
+# prisma generate does not connect to the database — it only reads schema.prisma to emit
+# TypeScript types. ARG provides the DATABASE_URL required by prisma.config.ts at build time
+# without embedding real credentials in the image layer.
+ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
+RUN npx prisma generate
 RUN npm run build && npm prune --omit=dev
 
 # ── Stage 2: runner ───────────────────────────────────────────────────────────
@@ -18,6 +24,7 @@ WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/src/generated/prisma ./src/generated/prisma
 
 USER nonroot
 EXPOSE 3000

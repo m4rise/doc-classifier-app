@@ -5,10 +5,14 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { HealthModule } from './health/health.module';
 import { ObservabilityModule } from './infrastructure/observability/observability.module';
+import { PrismaModule } from './shared/infrastructure/database/prisma.module';
 import { RequestIdInterceptor } from './shared/interceptors/request-id.interceptor';
 
 @Module({
   imports: [
+    // PrismaModule is @Global() — registers PrismaService + PrismaHealthIndicator
+    // in the DI container once; all feature modules access them without re-importing.
+    PrismaModule,
     ObservabilityModule,
     LoggerModule.forRoot({
       pinoHttp: {
