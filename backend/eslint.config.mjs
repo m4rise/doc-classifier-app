@@ -6,7 +6,10 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['eslint.config.mjs'],
+    // Prisma generated client must be excluded — it's auto-generated code that does
+    // not conform to our ESLint rules ({}  types, unused vars, etc.). Modifying it
+    // is pointless as prisma generate overwrites it on every run.
+    ignores: ['eslint.config.mjs', 'src/generated/**'],
   },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,

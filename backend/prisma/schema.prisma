@@ -1,0 +1,46 @@
+// Prisma schema — doc-classifier-app
+// Docs: https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference
+// Conventions: UUID PK, @@map (snake_case tables), nullable-first (RF-14),
+//              Prisma enums for finite domain values, migrations additive-only.
+
+generator client {
+  provider = "prisma-client-js"
+  // Prisma 7: output is required — client no longer generated in node_modules.
+  // Path is relative to this schema file (prisma/).
+  // Import path in app code: '../../../generated/prisma' from shared/infrastructure/database/
+  // See: https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7#schema-changes
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // Prisma 7: url is no longer supported here — moved to prisma.config.ts (ADR-DATA-002).
+  // Pool configuration (RF-02) is in PrismaService via pg.Pool constructor.
+  // See: https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7#prisma-config
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+// Role is a first-class domain value — enum prevents arbitrary strings in DB.
+// New roles (e.g. MODERATOR) require a Prisma migration: additive, not breaking.
+enum Role {
+  USER
+  ADMIN
+}
+
+// ---------------------------------------------------------------------------
+// User — Epic 1 / Story 1.3 (bootstrap)
+// Relations (documents, refreshTokens, consents) added in Epic 2 & 3.
+// ---------------------------------------------------------------------------
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}

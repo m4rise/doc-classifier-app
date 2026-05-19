@@ -1,4 +1,4 @@
-# ADR-013: OpenTelemetry SDK Wiring — NestJS
+# ADR-OBS-002: OpenTelemetry SDK Wiring — NestJS
 
 ## Status
 
@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-ADR-010 decided to adopt OpenTelemetry. This ADR records the concrete implementation
+ADR-OBS-001 decided to adopt OpenTelemetry. This ADR records the concrete implementation
 decisions visible in `backend/src/instrument.ts` and `backend/src/main.ts`.
 
 ## Decisions
