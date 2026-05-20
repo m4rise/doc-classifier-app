@@ -13,6 +13,8 @@ COPY . .
 ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
 RUN npx prisma generate
 RUN npm run build && npm prune --omit=dev
+# Fail explicitly if tsc/nest-build silently produced no output (exits 0 on some errors)
+RUN test -f dist/main.js || (echo "ERROR: dist/main.js not found after nest build" && exit 1)
 
 # ── Stage 2: runner ───────────────────────────────────────────────────────────
 # Distroless: no shell, no package manager, no npm — eliminates the entire
@@ -23,8 +25,8 @@ FROM gcr.io/distroless/nodejs24-debian13 AS runner
 WORKDIR /app
 
 COPY --from=builder /app/node_modules ./node_modules
+# dist/ includes compiled app + Prisma client (copied by nest-cli assets to dist/generated/prisma)
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/src/generated/prisma ./src/generated/prisma
 
 USER nonroot
 EXPOSE 3000
