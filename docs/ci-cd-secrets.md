@@ -5,19 +5,36 @@ Canonical source of truth for variable names: `backend/.env.example`.
 
 ---
 
+## Variable mapping: app names vs pipeline names
+
+Some variables have different names in the app vs in the pipeline. The deploy.yml handles the translation:
+
+| App variable (Cloud Run env) | Source | Pipeline reference | Notes |
+|---|---|---|---|
+| `GCS_PROJECT_ID` | `vars.GCP_PROJECT_ID` | `GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}` | Same value, different names |
+| `GCS_BUCKET_NAME` | `vars.GCS_BUCKET_NAME` | `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}` | Same name in both |
+| `DATABASE_URL` | GCP Secret Manager | `DATABASE_URL=DATABASE_URL:latest` | prod DB, injected at runtime |
+| `DATABASE_URL` (migrations) | `secrets.DATABASE_URL_PROD` | env var in prisma migrate step | GH secret, used only by deploy job |
+
+---
+
 ## Complete Key Map
 
-| Key | Local `.env` | GCP Secret Manager | Cloud Run env | GH Secret | GH Variable |
+> **GitHub secrets location**: all `[GH_SECRET]` entries live in the **`production` environment**
+> (Settings → Environments → production → Secrets), not at repo level.
+> `[GH_VAR]` entries are at **repo level** (Settings → Secrets and variables → Actions → Variables).
+
+| Key | Local `.env` | GCP Secret Manager | Cloud Run env | GH Secret (env: production) | GH Variable (repo) |
 |---|:---:|:---:|:---:|:---:|:---:|
 | `DATABASE_URL` | ✅ | ✅ | via `--set-secrets` | | |
 | `DATABASE_URL_PROD` | | | | ✅ | |
 | `NODE_ENV` | ✅ | | ✅ `=production` | | |
 | `PORT` | ✅ | | ✅ `=3000` | | |
-| `JWT_ACCESS_SECRET` | ✅ | ✅ | via `--set-secrets` | ✅ (CI tests) | |
-| `JWT_REFRESH_SECRET` | ✅ | ✅ | via `--set-secrets` | ✅ (CI tests) | |
+| `JWT_ACCESS_SECRET` | ✅ | ✅ | via `--set-secrets` | | |
+| `JWT_REFRESH_SECRET` | ✅ | ✅ | via `--set-secrets` | | |
 | `AES_ENCRYPTION_KEY` | ✅ | ✅ | via `--set-secrets` | | |
 | `GCS_BUCKET_NAME` | ✅ | | ✅ | | ✅ |
-| `GCS_PROJECT_ID` | ✅ | | ✅ (= `GCP_PROJECT_ID`) | | |
+| `GCS_PROJECT_ID` | ✅ | | ✅ (← `GCP_PROJECT_ID`) | | |
 | `GEMINI_API_KEY` | ✅ | ✅ | via `--set-secrets` | | |
 | `MCP_API_KEY` | ✅ | ✅ | via `--set-secrets` | | |
 | `SENTRY_DSN` | ✅ | ✅ | via `--set-secrets` | | |
@@ -35,11 +52,16 @@ Canonical source of truth for variable names: `backend/.env.example`.
 | `FILE_SIZE_LIMIT_MB` | ✅ | | ✅ `=10` | | |
 | `WIF_PROVIDER` | | | | ✅ | |
 | `WIF_SERVICE_ACCOUNT` | | | | ✅ | |
-| `FIREBASE_SERVICE_ACCOUNT` | | | | ✅ | |
 | `GCP_PROJECT_ID` | | | | | ✅ |
 | `GCP_REGION` | | | | | ✅ |
 | `CLOUD_RUN_SERVICE` | | | | | ✅ |
+| `GCS_BUCKET_NAME` (GH var) | | | | | ✅ |
 | `FIREBASE_PROJECT_ID` | | | | | ✅ |
+
+> **Note**: `FIREBASE_SERVICE_ACCOUNT` (JSON key) is **not needed** — Firebase Hosting deploy
+> uses the same WIF service account as the backend (`github-actions@...` has `Administrateur Firebase Hosting` role).
+> `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` are **not GitHub secrets** — CI integration tests
+> use a local postgres with hardcoded credentials and do not require JWT secrets.
 
 ---
 
@@ -106,54 +128,56 @@ done
 
 ---
 
-## 2. GitHub Actions — Secrets
+## 2. GitHub Actions — Secrets (environment: production)
 
-> Prerequisites: `gh auth login` with repo access
-
-```bash
-REPO="m4rise/doc-classifier-app"   # adjust if different
-
-# GCP OIDC auth
-gh secret set WIF_PROVIDER         --body "projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER" --repo="$REPO"
-gh secret set WIF_SERVICE_ACCOUNT  --body "github-actions@doc-classifier-app.iam.gserviceaccount.com" --repo="$REPO"
-
-# Database (for Prisma migrations in deploy job)
-gh secret set DATABASE_URL_PROD    --body "postgresql://..." --repo="$REPO"
-
-# JWT (for integration tests in CI — same values as GCP Secret Manager)
-gh secret set JWT_ACCESS_SECRET    --body "SAME_VALUE_AS_GCP" --repo="$REPO"
-gh secret set JWT_REFRESH_SECRET   --body "SAME_VALUE_AS_GCP" --repo="$REPO"
-
-# Firebase (service account JSON — paste the full JSON on one line or use a file)
-gh secret set FIREBASE_SERVICE_ACCOUNT --body-file="path/to/firebase-sa.json" --repo="$REPO"
-```
-
-### Verify
-
-```bash
-gh secret list --repo="$REPO"
-# Expected: WIF_PROVIDER, WIF_SERVICE_ACCOUNT, DATABASE_URL_PROD,
-#           JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, FIREBASE_SERVICE_ACCOUNT
-```
-
----
-
-## 3. GitHub Actions — Variables
+> Prerequisites: `gh auth login` with repo access.
+> All secrets below live in the **`production` environment**, not at repo level.
 
 ```bash
 REPO="m4rise/doc-classifier-app"
 
-gh variable set GCP_PROJECT_ID    --body "doc-classifier-app"   --repo="$REPO"
-gh variable set GCP_REGION        --body "europe-west1"          --repo="$REPO"
-gh variable set CLOUD_RUN_SERVICE --body "doc-classifier-backend" --repo="$REPO"
-gh variable set GCS_BUCKET_NAME   --body "doc-classifier-app-documents" --repo="$REPO"
-gh variable set FIREBASE_PROJECT_ID --body "doc-classifier-app" --repo="$REPO"
+# GCP OIDC auth (used by both deploy-backend and deploy-frontend jobs)
+gh secret set WIF_PROVIDER         --env production --repo "$REPO"
+# → projects/70770966880/locations/global/workloadIdentityPools/github-actions-pool/providers/github-actions-provider
+
+gh secret set WIF_SERVICE_ACCOUNT  --env production --repo "$REPO"
+# → github-actions@doc-classifier-app.iam.gserviceaccount.com
+
+# Database — used only by prisma migrate deploy step in the deploy job
+# (NOT the same as the DATABASE_URL secret in GCP Secret Manager)
+gh secret set DATABASE_URL_PROD    --env production --repo "$REPO"
+# → postgresql://... (Neon prod direct URL, non-pooled)
 ```
 
 ### Verify
 
 ```bash
-gh variable list --repo="$REPO"
+gh secret list --env production --repo "$REPO"
+# Expected: DATABASE_URL_PROD, WIF_PROVIDER, WIF_SERVICE_ACCOUNT  (3 secrets)
+```
+
+---
+
+## 3. GitHub Actions — Variables (repo level)
+
+> Variables are non-sensitive and live at **repo level** (not environment-scoped).
+> They are accessible via `vars.*` in all jobs, including those using `environment: production`.
+
+```bash
+REPO="m4rise/doc-classifier-app"
+
+gh variable set GCP_PROJECT_ID    --body "doc-classifier-app"     --repo "$REPO"
+gh variable set GCP_REGION        --body "europe-west1"            --repo "$REPO"
+gh variable set CLOUD_RUN_SERVICE --body "doc-classifier-backend"  --repo "$REPO"
+gh variable set GCS_BUCKET_NAME   --body "doc-classifier-documents" --repo "$REPO"
+# ⚠ FIREBASE_PROJECT_ID must be the project ID string, not the project number
+gh variable set FIREBASE_PROJECT_ID --body "doc-classifier-app"   --repo "$REPO"
+```
+
+### Verify
+
+```bash
+gh variable list --repo "$REPO"
 # Expected: GCP_PROJECT_ID, GCP_REGION, CLOUD_RUN_SERVICE,
 #           GCS_BUCKET_NAME, FIREBASE_PROJECT_ID
 ```
