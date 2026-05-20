@@ -129,10 +129,10 @@ These cannot be fetched from GCP Secret Manager — they are needed before any G
 
 Two separate GitHub Actions workflows:
 
-| Workflow | File | Trigger | Purpose |
-|---|---|---|---|
-| CI | `.github/workflows/ci.yml` | push (non-main) + PR → main | lint, unit, integration, security |
-| Deploy | `.github/workflows/deploy.yml` | CI passes on main | deploy backend + frontend |
+| Workflow | File                           | Trigger                     | Purpose                           |
+| -------- | ------------------------------ | --------------------------- | --------------------------------- |
+| CI       | `.github/workflows/ci.yml`     | push (non-main) + PR → main | lint, unit, integration, security |
+| Deploy   | `.github/workflows/deploy.yml` | CI passes on main           | deploy backend + frontend         |
 
 **Deploy flow (on merge to main):**
 

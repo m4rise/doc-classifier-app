@@ -16,6 +16,7 @@ jobs:
   # Variables required (GitHub Actions vars.*):
   #   GCP_PROJECT_ID, GCP_REGION         — GCP project and region
   #   CLOUD_RUN_SERVICE                  — Cloud Run service name
+  #   GCS_BUCKET_NAME                    — GCS bucket name (non-sensitive)
   # ---------------------------------------------------------------------------
   deploy-backend:
     name: Deploy Backend to Cloud Run
@@ -79,7 +80,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Deploy to Cloud Run
-        uses: google-github-actions/deploy-cloudrun@v2
+        uses: google-github-actions/deploy-cloudrun@v3
         with:
           service: ${{ vars.CLOUD_RUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
@@ -103,10 +104,15 @@ jobs:
             PORT=3000
             GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
             GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}
-            OTEL_SERVICE_NAME=doc-classifier-backend
+            OTEL_SERVICE_NAME=doc-classifier-app-backend
+            OTEL_RESOURCE_ATTRIBUTES=service.namespace=production,deployment.environment=production
             OTEL_TRACES_EXPORTER=otlp
             OTEL_METRICS_EXPORTER=otlp
             OTEL_LOGS_EXPORTER=otlp
+            THROTTLE_TTL=60
+            THROTTLE_LIMIT=100
+            CONFIDENCE_THRESHOLD=0.7
+            FILE_SIZE_LIMIT_MB=10
 
   # ---------------------------------------------------------------------------
   # Frontend — Build Vue SPA → Firebase Hosting deploy
