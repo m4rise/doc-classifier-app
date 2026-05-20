@@ -1,11 +1,13 @@
 name: Deploy
 
 # Triggered only when CI passes on main — ensures no deploy on broken build.
+# workflow_dispatch allows manual triggering for testing without merging to main.
 on:
   workflow_run:
     workflows: [CI]
     branches: [main]
     types: [completed]
+  workflow_dispatch:
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -22,7 +24,7 @@ jobs:
     name: Deploy Backend to Cloud Run
     runs-on: ubuntu-latest
     environment: production
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       id-token: write   # required for WIF OIDC
@@ -30,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: ./.github/actions/setup
         with:
@@ -76,7 +78,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ github.event.workflow_run.head_sha }}
+          tags: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ github.event.workflow_run.head_sha || github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -85,7 +87,7 @@ jobs:
         with:
           service: ${{ vars.CLOUD_RUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
-          image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ github.event.workflow_run.head_sha }}
+          image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ github.event.workflow_run.head_sha || github.sha }}
           # Secrets from GCP Secret Manager — injected as env vars at runtime.
           # Format: ENV_VAR_NAME=secret-resource-name:version
           secrets: |
@@ -127,7 +129,7 @@ jobs:
     name: Deploy Frontend to Firebase Hosting
     runs-on: ubuntu-latest
     environment: production
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       id-token: write   # required for WIF OIDC
@@ -135,7 +137,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - uses: ./.github/actions/setup
         with:
