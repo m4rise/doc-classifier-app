@@ -9,12 +9,12 @@ Canonical source of truth for variable names: `backend/.env.example`.
 
 Some variables have different names in the app vs in the pipeline. The deploy.yml handles the translation:
 
-| App variable (Cloud Run env) | Source | Pipeline reference | Notes |
-|---|---|---|---|
-| `GCS_PROJECT_ID` | `vars.GCP_PROJECT_ID` | `GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}` | Same value, different names |
-| `GCS_BUCKET_NAME` | `vars.GCS_BUCKET_NAME` | `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}` | Same name in both |
-| `DATABASE_URL` | GCP Secret Manager | `DATABASE_URL=DATABASE_URL:latest` | prod DB, injected at runtime |
-| `DATABASE_URL` (migrations) | `secrets.DATABASE_URL_PROD` | env var in prisma migrate step | GH secret, used only by deploy job |
+| App variable (Cloud Run env) | Source                      | Pipeline reference                            | Notes                              |
+| ---------------------------- | --------------------------- | --------------------------------------------- | ---------------------------------- |
+| `GCS_PROJECT_ID`             | `vars.GCP_PROJECT_ID`       | `GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}`   | Same value, different names        |
+| `GCS_BUCKET_NAME`            | `vars.GCS_BUCKET_NAME`      | `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}` | Same name in both                  |
+| `DATABASE_URL`               | GCP Secret Manager          | `DATABASE_URL=DATABASE_URL:latest`            | prod DB, injected at runtime       |
+| `DATABASE_URL` (migrations)  | `secrets.DATABASE_URL_PROD` | env var in prisma migrate step                | GH secret, used only by deploy job |
 
 ---
 
@@ -24,39 +24,39 @@ Some variables have different names in the app vs in the pipeline. The deploy.ym
 > (Settings → Environments → production → Secrets), not at repo level.
 > `[GH_VAR]` entries are at **repo level** (Settings → Secrets and variables → Actions → Variables).
 
-| Key | Local `.env` | GCP Secret Manager | Cloud Run env | GH Secret (env: production) | GH Variable (repo) |
-|---|:---:|:---:|:---:|:---:|:---:|
-| `DATABASE_URL` | ✅ | ✅ | via `--set-secrets` | | |
-| `DATABASE_URL_PROD` | | | | ✅ | |
-| `NODE_ENV` | ✅ | | ✅ `=production` | | |
-| `PORT` | ✅ | | ✅ `=3000` | | |
-| `JWT_ACCESS_SECRET` | ✅ | ✅ | via `--set-secrets` | | |
-| `JWT_REFRESH_SECRET` | ✅ | ✅ | via `--set-secrets` | | |
-| `AES_ENCRYPTION_KEY` | ✅ | ✅ | via `--set-secrets` | | |
-| `GCS_BUCKET_NAME` | ✅ | | ✅ | | ✅ |
-| `GCS_PROJECT_ID` | ✅ | | ✅ (← `GCP_PROJECT_ID`) | | |
-| `GEMINI_API_KEY` | ✅ | ✅ | via `--set-secrets` | | |
-| `MCP_API_KEY` | ✅ | ✅ | via `--set-secrets` | | |
-| `SENTRY_DSN` | ✅ | ✅ | via `--set-secrets` | | |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | ✅ | ✅ | via `--set-secrets` | | |
-| `GRAFANA_INSTANCE_ID` | ✅ | ✅ | via `--set-secrets` | | |
-| `GRAFANA_API_KEY` | ✅ | ✅ | via `--set-secrets` | | |
-| `OTEL_SERVICE_NAME` | ✅ | | ✅ | | |
-| `OTEL_RESOURCE_ATTRIBUTES` | ✅ | | ✅ | | |
-| `OTEL_TRACES_EXPORTER` | ✅ | | ✅ | | |
-| `OTEL_METRICS_EXPORTER` | ✅ | | ✅ | | |
-| `OTEL_LOGS_EXPORTER` | ✅ | | ✅ | | |
-| `THROTTLE_TTL` | ✅ | | ✅ `=60` | | |
-| `THROTTLE_LIMIT` | ✅ | | ✅ `=100` | | |
-| `CONFIDENCE_THRESHOLD` | ✅ | | ✅ `=0.7` | | |
-| `FILE_SIZE_LIMIT_MB` | ✅ | | ✅ `=10` | | |
-| `WIF_PROVIDER` | | | | ✅ | |
-| `WIF_SERVICE_ACCOUNT` | | | | ✅ | |
-| `GCP_PROJECT_ID` | | | | | ✅ |
-| `GCP_REGION` | | | | | ✅ |
-| `CLOUD_RUN_SERVICE` | | | | | ✅ |
-| `GCS_BUCKET_NAME` (GH var) | | | | | ✅ |
-| `FIREBASE_PROJECT_ID` | | | | | ✅ |
+| Key                           | Local `.env` | GCP Secret Manager |      Cloud Run env      | GH Secret (env: production) | GH Variable (repo) | Description                                                                                                      |
+| ----------------------------- | :----------: | :----------------: | :---------------------: | :-------------------------: | :----------------: | ---------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **Production database connection string. Used by backend at runtime.**                                           |
+| `DATABASE_URL_PROD`           |              |                    |                         |             ✅              |                    | **Production database connection string (Neon, non-pooled). Used only for migrations in deploy job.**            |
+| `NODE_ENV`                    |      ✅      |                    |    ✅ `=production`     |                             |                    | **Node.js environment (always 'production' in Cloud Run).**                                                      |
+| `PORT`                        |      ✅      |                    |       ✅ `=3000`        |                             |                    | **Port the backend listens on (default: 3000).**                                                                 |
+| `JWT_ACCESS_SECRET`           |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **Secret for signing JWT access tokens.**                                                                        |
+| `JWT_REFRESH_SECRET`          |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **Secret for signing JWT refresh tokens.**                                                                       |
+| `AES_ENCRYPTION_KEY`          |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **AES-256 key for encrypting data at rest.**                                                                     |
+| `GCS_BUCKET_NAME`             |      ✅      |                    |           ✅            |                             |         ✅         | **Google Cloud Storage bucket for document uploads.**                                                            |
+| `GCS_PROJECT_ID`              |      ✅      |                    | ✅ (← `GCP_PROJECT_ID`) |                             |                    | **GCP project ID (injected as GCS_PROJECT_ID for app compatibility).**                                           |
+| `GEMINI_API_KEY`              |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **API key for Google Gemini (AI features).**                                                                     |
+| `MCP_API_KEY`                 |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **Static API key for MCP endpoints authentication.**                                                             |
+| `SENTRY_DSN`                  |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **Sentry DSN for error reporting.**                                                                              |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **OTLP endpoint for OpenTelemetry traces/metrics/logs (Grafana Cloud).**                                         |
+| `GRAFANA_INSTANCE_ID`         |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **Grafana Cloud instance ID (for OTLP authentication).**                                                         |
+| `GRAFANA_API_KEY`             |      ✅      |         ✅         |   via `--set-secrets`   |                             |                    | **Grafana Cloud API key (for OTLP authentication).**                                                             |
+| `OTEL_SERVICE_NAME`           |      ✅      |                    |           ✅            |                             |                    | **OpenTelemetry service name (for observability).**                                                              |
+| `OTEL_RESOURCE_ATTRIBUTES`    |      ✅      |                    |           ✅            |                             |                    | **OpenTelemetry resource attributes (for observability).**                                                       |
+| `OTEL_TRACES_EXPORTER`        |      ✅      |                    |           ✅            |                             |                    | **OTEL traces exporter (default: otlp).**                                                                        |
+| `OTEL_METRICS_EXPORTER`       |      ✅      |                    |           ✅            |                             |                    | **OTEL metrics exporter (default: otlp).**                                                                       |
+| `OTEL_LOGS_EXPORTER`          |      ✅      |                    |           ✅            |                             |                    | **OTEL logs exporter (default: otlp).**                                                                          |
+| `THROTTLE_TTL`                |      ✅      |                    |        ✅ `=60`         |                             |                    | **Rate limit window in seconds (default: 60).**                                                                  |
+| `THROTTLE_LIMIT`              |      ✅      |                    |        ✅ `=100`        |                             |                    | **Max requests per IP per window (default: 100).**                                                               |
+| `CONFIDENCE_THRESHOLD`        |      ✅      |                    |        ✅ `=0.7`        |                             |                    | **Minimum AI confidence score for auto-validation (default: 0.7).**                                              |
+| `FILE_SIZE_LIMIT_MB`          |      ✅      |                    |        ✅ `=10`         |                             |                    | **Max upload file size in MB (default: 10).**                                                                    |
+| `WIF_PROVIDER`                |              |                    |                         |             ✅              |                    | **GCP OIDC provider resource name for Workload Identity Federation.**                                            |
+| `WIF_SERVICE_ACCOUNT`         |              |                    |                         |             ✅              |                    | **GCP service account email to impersonate via OIDC.**                                                           |
+| `GCP_PROJECT_ID`              |              |                    |                         |                             |         ✅         | **GCP project ID (used for image tags, gcloud config, etc).**                                                    |
+| `GCP_REGION`                  |              |                    |                         |                             |         ✅         | **GCP region for Cloud Run, Artifact Registry, etc.**                                                            |
+| `CLOUD_RUN_SERVICE`           |              |                    |                         |                             |         ✅         | **Cloud Run service name to deploy to (default: 'doc-classifier-backend'). Must match the service name in GCP.** |
+| `GCS_BUCKET_NAME` (GH var)    |              |                    |                         |                             |         ✅         | **Duplicate of GCS_BUCKET_NAME for clarity in variable mapping.**                                                |
+| `FIREBASE_PROJECT_ID`         |              |                    |                         |                             |         ✅         | **Firebase project ID (must be string, not number). Used by Firebase CLI for frontend deploy.**                  |
 
 > **Note**: `FIREBASE_SERVICE_ACCOUNT` (JSON key) is **not needed** — Firebase Hosting deploy
 > uses the same WIF service account as the backend (`github-actions@...` has `Administrateur Firebase Hosting` role).
