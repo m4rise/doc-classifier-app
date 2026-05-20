@@ -39,11 +39,9 @@ This runbook tracks provider setup for `doc-classifier-app`.
 ## 2. Neon.tech
 
 - [x] Project created: `doc-classifier-app`
-- [x] Branches created:
-  - [x] `main` (prod)
-- [x] Connection strings generated:
-  - [x] `DATABASE_URL`
-- [x] Connection string includes params:
+- [x] Branch: `main` (prod)
+- [x] Connection string generated: `DATABASE_URL` (direct, non-pooled)
+- [x] Connection string params:
   - [x] `connection_limit=2`
   - [x] `pool_timeout=10`
 
@@ -119,11 +117,37 @@ These cannot be fetched from GCP Secret Manager — they are needed before any G
 
 - `WIF_PROVIDER` — GCP OIDC provider resource name
 - `WIF_SERVICE_ACCOUNT` — service account email for OIDC impersonation
-- `DATABASE_URL_STAGING` — `prisma migrate deploy` on staging
-- `DATABASE_URL_PROD` — `prisma migrate deploy` on prod
+- `GCP_PROJECT_ID` — GCP project ID (Artifact Registry + Cloud Run)
+- `GCP_REGION` — GCP region (e.g. `europe-west1`)
+- `CLOUD_RUN_SERVICE` — Cloud Run service name
+- `DATABASE_URL_PROD` — `prisma migrate deploy` against Neon prod
+- `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET` — real token signing in integration tests
 - `FIREBASE_SERVICE_ACCOUNT` — Firebase Hosting deploy (service account JSON)
+- `FIREBASE_PROJECT_ID` — Firebase project ID
 
-## 8. Final Verification
+## 8. CI/CD Pipeline
+
+Two separate GitHub Actions workflows:
+
+| Workflow | File                           | Trigger                     | Purpose                           |
+| -------- | ------------------------------ | --------------------------- | --------------------------------- |
+| CI       | `.github/workflows/ci.yml`     | push (non-main) + PR → main | lint, unit, integration, security |
+| Deploy   | `.github/workflows/deploy.yml` | CI passes on main           | deploy backend + frontend         |
+
+**Deploy flow (on merge to main):**
+
+1. `deploy-backend` job:
+   - `npx prisma migrate deploy` with `DATABASE_URL_PROD` (migrations before new revision)
+   - GCP OIDC auth via Workload Identity Federation (no static JSON key)
+   - Docker build+push to Artifact Registry
+   - `google-github-actions/deploy-cloudrun@v2` → new Cloud Run revision
+2. `deploy-frontend` job (parallel to backend):
+   - `npm run build` (Vue/Vite SPA)
+   - `FirebaseExtended/action-hosting-deploy@v0` → Firebase Hosting live channel
+
+**Image tag:** `{GCP_REGION}-docker.pkg.dev/{GCP_PROJECT_ID}/backend/doc-classifier-backend:{git_sha}`
+
+## 9. Final Verification
 
 - [x] `backend/.env.example` matches required variable names
 - [x] No secret values committed

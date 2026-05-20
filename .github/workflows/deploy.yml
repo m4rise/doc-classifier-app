@@ -1,0 +1,163 @@
+name: Deploy
+
+# Triggered only when CI passes on main — ensures no deploy on broken build.
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Backend — Prisma migrate → Docker build+push → Cloud Run deploy
+  # Secrets required (GitHub Actions):
+  #   WIF_PROVIDER, WIF_SERVICE_ACCOUNT  — GCP OIDC auth (no JSON key)
+  #   DATABASE_URL_PROD                  — Neon prod connection string (migrations)
+  # Variables required (GitHub Actions vars.*):
+  #   GCP_PROJECT_ID, GCP_REGION         — GCP project and region
+  #   CLOUD_RUN_SERVICE                  — Cloud Run service name
+  #   GCS_BUCKET_NAME                    — GCS bucket name (non-sensitive)
+  # ---------------------------------------------------------------------------
+  deploy-backend:
+    name: Deploy Backend to Cloud Run
+    runs-on: ubuntu-latest
+    environment: production
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      id-token: write   # required for WIF OIDC
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: ./.github/actions/setup
+        with:
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        run: npm ci
+        working-directory: backend
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+
+      - name: Authenticate to GCP (OIDC)
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Configure Docker for Artifact Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ vars.GCP_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ github.event.workflow_run.head_sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: ${{ vars.CLOUD_RUN_SERVICE }}
+          region: ${{ vars.GCP_REGION }}
+          image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ github.event.workflow_run.head_sha }}
+          # Secrets from GCP Secret Manager — injected as env vars at runtime.
+          # Format: ENV_VAR_NAME=secret-resource-name:version
+          secrets: |
+            DATABASE_URL=DATABASE_URL:latest
+            JWT_ACCESS_SECRET=JWT_ACCESS_SECRET:latest
+            JWT_REFRESH_SECRET=JWT_REFRESH_SECRET:latest
+            AES_ENCRYPTION_KEY=AES_ENCRYPTION_KEY:latest
+            GEMINI_API_KEY=GEMINI_API_KEY:latest
+            MCP_API_KEY=MCP_API_KEY:latest
+            SENTRY_DSN=SENTRY_DSN:latest
+            OTEL_EXPORTER_OTLP_ENDPOINT=OTEL_EXPORTER_OTLP_ENDPOINT:latest
+            GRAFANA_INSTANCE_ID=GRAFANA_INSTANCE_ID:latest
+            GRAFANA_API_KEY=GRAFANA_API_KEY:latest
+          # Non-sensitive config — passed as plain env vars.
+          env_vars: |
+            NODE_ENV=production
+            PORT=3000
+            GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
+            GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}
+            OTEL_SERVICE_NAME=doc-classifier-app-backend
+            OTEL_RESOURCE_ATTRIBUTES=service.namespace=production,deployment.environment=production
+            OTEL_TRACES_EXPORTER=otlp
+            OTEL_METRICS_EXPORTER=otlp
+            OTEL_LOGS_EXPORTER=otlp
+            THROTTLE_TTL=60
+            THROTTLE_LIMIT=100
+            CONFIDENCE_THRESHOLD=0.7
+            FILE_SIZE_LIMIT_MB=10
+
+  # ---------------------------------------------------------------------------
+  # Frontend — Build Vue SPA → Firebase Hosting deploy
+  # No service account JSON needed — uses WIF (same SA as backend).
+  # The github-actions SA has "Administrateur Firebase Hosting" role.
+  # Firebase CLI picks up Application Default Credentials set by auth@v2.
+  # Variables required (GitHub Actions vars.*):
+  #   FIREBASE_PROJECT_ID       — Firebase project ID
+  # ---------------------------------------------------------------------------
+  deploy-frontend:
+    name: Deploy Frontend to Firebase Hosting
+    runs-on: ubuntu-latest
+    environment: production
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    permissions:
+      contents: read
+      id-token: write   # required for WIF OIDC
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - uses: ./.github/actions/setup
+        with:
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Authenticate to GCP (OIDC)
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project ${{ vars.FIREBASE_PROJECT_ID }}
+        working-directory: frontend
