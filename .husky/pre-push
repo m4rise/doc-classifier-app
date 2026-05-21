@@ -1,0 +1,4 @@
+#!/bin/sh
+. "$(dirname "$0")/_/h"
+
+node .husky/check-pr-labels.js

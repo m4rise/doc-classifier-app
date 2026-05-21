@@ -1,0 +1,32 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:base", ":semanticCommits"],
+  "semanticCommitScope": "deps",
+  "schedule": ["before 9am on Monday"],
+  "prHourlyLimit": 3,
+  "prConcurrentLimit": 6,
+  "labels": ["dependencies"],
+  "packageRules": [
+    {
+      "description": "Automerge minor and patch updates",
+      "matchUpdateTypes": ["minor", "patch"],
+      "automerge": true
+    },
+    {
+      "description": "Group NestJS backend dependencies",
+      "matchFileNames": ["backend/package.json"],
+      "groupName": "backend dependencies"
+    },
+    {
+      "description": "Group Vue 3 frontend dependencies",
+      "matchFileNames": ["frontend/package.json"],
+      "groupName": "frontend dependencies"
+    },
+    {
+      "description": "Group GitHub Actions and automerge them",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true
+    }
+  ]
+}

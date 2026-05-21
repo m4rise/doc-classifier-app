@@ -44,8 +44,8 @@ So that **[benefit]**.
 - [ ] CI green on PR before merge
 
 ## Implementation Tasks
-- [ ] 
-- [ ] 
+- [ ]
+- [ ]
 
 ## Security / RGPD Checklist
 - [ ] No PII in logs — only `traceId` / UUIDs logged

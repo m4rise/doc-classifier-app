@@ -9,14 +9,14 @@ assignees: []
 A clear and concise description of the bug.
 
 ### Affected Area
-- **Domain / Slice:** <!-- auth | documents | ai | users | admin | analytics | mcp | shared | frontend -->
+- **Domain / Slice:** <!-- auth | documents | ai | users | admin | search | rgpd | mcp | shared | frontend -->
 - **Environment:** <!-- dev (local docker-compose) | staging | prod -->
 - **Layer:** <!-- API (NestJS) | Vue 3 frontend | Prisma / DB | GCS | Gemini pipeline | CI/CD -->
 
 ### Steps to Reproduce
-1. 
-2. 
-3. 
+1.
+2.
+3.
 
 ### Expected Behavior
 What should happen.
@@ -33,8 +33,8 @@ What actually happens. Include:
 ```
 
 ### Environment Details
-- App version / commit SHA: 
-- Browser (if frontend): 
+- App version / commit SHA:
+- Browser (if frontend):
 - Node version (`node --version`):
 
 ### Severity

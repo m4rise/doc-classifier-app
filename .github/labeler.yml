@@ -1,0 +1,89 @@
+# Labeler configuration for actions/labeler@v5
+# Automatically adds labels to PRs based on changed files
+# Label names must exactly match GitHub labels.
+
+root:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'package-lock.json'
+      - '.editorconfig'
+      - '.gitignore'
+      - '.gitattributes'
+      - 'commitlint.config.cjs'
+      - 'renovate.json'
+      - 'LICENSE'
+      - '.releaserc.json'
+
+backend:
+  - changed-files:
+    - any-glob-to-any-file: 'backend/**'
+
+frontend:
+  - changed-files:
+    - any-glob-to-any-file: 'frontend/**'
+
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'docs/**'
+      - '**/*.md'
+
+ci-cd:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+
+docker:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/Dockerfile*'
+      - 'docker-compose*.yml'
+
+infra:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/terraform/**'
+      - '**/k8s/**'
+      - '**/helm/**'
+      - 'docs/infra-setup.md'
+
+db:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'backend/prisma/**'
+      - '**/migrations/**'
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/package.json'
+      - '**/package-lock.json'
+      - 'renovate.json'
+
+observability:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/observability/**'
+      - '**/instrument.ts'
+
+test:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.spec.*'
+      - '**/*.test.*'
+      - '**/test/**'
+      - '**/e2e/**'
+
+security:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/SECURITY.md'
+      - '**/auth/**'
+
+release:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.releaserc.json'
+      - 'CHANGELOG.md'

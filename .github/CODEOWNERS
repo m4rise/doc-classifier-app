@@ -1,0 +1,5 @@
+# CODEOWNERS
+# Ajoute ici les responsables de chaque dossier/fichier pour automatiser l’assignation des reviewers sur les PR.
+# Format : chemin @github-user
+
+*       @m4rise
