@@ -1,15 +1,41 @@
+
 # doc-classifier-app
 
-Monorepo fullstack pour classification intelligente de documents.
+<!-- Badges -->
+![CI](https://github.com/m4rise/doc-classifier-app/actions/workflows/ci.yml/badge.svg)
+![Deploy](https://github.com/m4rise/doc-classifier-app/actions/workflows/deploy.yml/badge.svg)
+[![codecov](https://codecov.io/gh/m4rise/doc-classifier-app/graph/badge.svg)](https://codecov.io/gh/m4rise/doc-classifier-app)
+![Dependencies](https://img.shields.io/librariesio/github/m4rise/doc-classifier-app)
+![License](https://img.shields.io/github/license/m4rise/doc-classifier-app)
+![Release](https://img.shields.io/github/v/release/m4rise/doc-classifier-app)
+![Conventional Commits](https://img.shields.io/badge/commits-conventional-brightgreen)
+![Open Issues](https://img.shields.io/github/issues/m4rise/doc-classifier-app)
+![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen)
+
+---
+
+## 🚦 Quality & Automation
+
+- CI/CD with GitHub Actions (lint, test, build, security, deploy)
+- Renovate for dependency management
+- Husky + lint-staged + Commitlint (quality before commit/push)
+- Branch and commit conventions (Conventional Commits)
+- Issue and PR templates
+- Structured documentation (CONTRIBUTING, ADR, etc.)
+- Ready for SonarCloud, automated changelog, dynamic badges
+
+---
+
+Fullstack monorepo for intelligent document classification.
 
 ## Stack
 
-- Backend: NestJS (TypeScript strict)
-- Frontend: Vue 3 + Vite + Pinia + Router
-- Database: PostgreSQL (local via Docker, staging/prod via Neon)
-- Storage: Google Cloud Storage
-- Hosting frontend: Firebase Hosting
-- Runtime: Node 24
+- **Backend:** NestJS (strict TypeScript)
+- **Frontend:** Vue 3 + Vite + Pinia + Router
+- **Database:** PostgreSQL (local via Docker, staging/prod via Neon)
+- **Storage:** Google Cloud Storage
+- **Frontend hosting:** Firebase Hosting
+- **Runtime:** Node 24
 
 ## Prerequisites
 
@@ -17,37 +43,26 @@ Monorepo fullstack pour classification intelligente de documents.
 - Docker + Docker Compose
 - npm
 
-## Before You Start
-
-Run the infrastructure bootstrap checklist in `docs/infra-setup.md`.
-
-## Local Setup
+## Quickstart
 
 1. Install Node 24 via mise:
-
-```bash
-mise install
-node -v
-```
-
+	```bash
+	mise install
+	node -v
+	```
 2. Install dependencies:
-
-```bash
-npm --prefix backend install
-npm --prefix frontend install
-```
-
+	```bash
+	npm --prefix backend install
+	npm --prefix frontend install
+	```
 3. Start PostgreSQL + API hot reload:
-
-```bash
-docker compose up -d
-```
-
+	```bash
+	docker compose up -d
+	```
 4. Start frontend:
-
-```bash
-npm --prefix frontend run dev
-```
+	```bash
+	npm --prefix frontend run dev
+	```
 
 ## Monorepo Scripts
 
@@ -59,7 +74,11 @@ npm run test
 npm run build
 ```
 
+## How to contribute
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, branch naming, and PR process.
+
 ## Notes
 
-- Architecture target and decisions are tracked in `docs/adr/`.
+- Architecture targets and decisions are tracked in `docs/adr/`.
 - `.mcp.json` must be generated per environment and never hardcoded with a single URL.

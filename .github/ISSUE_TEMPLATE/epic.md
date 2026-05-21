@@ -14,9 +14,9 @@ _What major capability does this epic deliver to the product?_
 - **ARs covered:** <!-- e.g. AR10–AR16 -->
 
 ## Included Stories
-- [ ] Story N.0 — 
-- [ ] Story N.1 — 
-- [ ] Story N.2 — 
+- [ ] Story N.0 —
+- [ ] Story N.1 —
+- [ ] Story N.2 —
 
 ## ADRs Required Before Implementation
 - [ ] ADR-XXX — _Decision name_

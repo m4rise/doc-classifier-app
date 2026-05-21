@@ -5,6 +5,7 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  workflow_dispatch: # Allow manual runs without merging to main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -50,6 +51,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
 
       - uses: ./.github/actions/setup
         with:
@@ -67,17 +70,33 @@ jobs:
         env:
           DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
-      - name: Backend unit tests
-        run: npm run test -- --runInBand
+      - name: Backend unit tests with coverage
+        run: npm run test:cov -- --runInBand
         working-directory: backend
 
       - name: Install frontend deps
         run: npm ci
         working-directory: frontend
 
-      - name: Frontend unit tests
-        run: npm run test:unit -- --run
+      - name: Frontend unit tests with coverage
+        run: npm run test:cov
         working-directory: frontend
+
+      - name: Upload backend coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/lcov.info
+          flags: backend
+          fail_ci_if_error: false
+
+      - name: Upload frontend coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/frontend/lcov.info
+          flags: frontend
+          fail_ci_if_error: false
 
   test-integration:
     name: Integration Tests
@@ -238,6 +257,9 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          # persist-credentials: false is required so that @semantic-release/git
+          # uses RELEASE_TOKEN (set below) to push, not the default GITHUB_TOKEN bot.
+          persist-credentials: false
 
       - uses: ./.github/actions/setup
         with:
@@ -248,5 +270,7 @@ jobs:
 
       - name: semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # RELEASE_TOKEN: fine-grained PAT with Contents + Pull requests write
+          # Required to bypass branch protection and push CHANGELOG.md + version bump
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
         run: npx semantic-release
