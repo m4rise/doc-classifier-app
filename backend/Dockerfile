@@ -14,7 +14,8 @@ ARG DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
 RUN npx prisma generate
 RUN npm run build && npm prune --omit=dev
 # Fail explicitly if tsc/nest-build silently produced no output (exits 0 on some errors)
-RUN test -f dist/main.js || (echo "ERROR: dist/main.js not found after nest build" && exit 1)
+# NestJS CLI with sourceRoot=src outputs to dist/src/, not dist/ directly.
+RUN test -f dist/src/main.js || (echo "ERROR: dist/src/main.js not found after nest build" && exit 1)
 
 # ── Stage 2: runner ───────────────────────────────────────────────────────────
 # Distroless: no shell, no package manager, no npm — eliminates the entire
@@ -32,4 +33,5 @@ USER nonroot
 EXPOSE 3000
 
 # Entrypoint is already "node" in distroless — just pass the script path.
-CMD ["dist/main.js"]
+# NestJS CLI with sourceRoot=src compiles to dist/src/main.js.
+CMD ["dist/src/main.js"]
