@@ -9,7 +9,7 @@ module.exports = {
         "auth",
         "users",
         "documents",
-        "ai",
+        "ai-pipeline",
         "search",
         "admin",
         "mcp",
@@ -20,14 +20,17 @@ module.exports = {
         "shared",
         "health",
         "observability",
-        // Frontend
+        // Apps
         "frontend",
+        "backend",
+        // Repo root
+        "root",
         // DevOps / tooling
         "ci-cd",
         "infra",
         "db",
         "docker",
-        "deps",
+        "dependencies",
         "release",
         "workspace",
       ],
