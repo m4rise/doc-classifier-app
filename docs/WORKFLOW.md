@@ -3,6 +3,24 @@
 
 This document describes the complete workflow for contributing to this repository, ensuring compliance with all automation, naming, and quality conventions (labels, commit lint, changelog, release, etc.).
 
+## 0. Choose the Right Track
+
+Use one of these two contribution tracks:
+
+- **Track A — BMAD-driven product scope (epics/stories):**
+	- Source of truth lives in `doc-classifier-specs/_bmad-output/doc-classifier/`.
+	- Sync to GitHub with `import_epics_stories.py`.
+	- Back-sync on issue close with `sync_status.py` through `.github/workflows/back-sync-specs.yml`.
+	- Full commands and scenarios are documented in `doc-classifier-specs/scripts/README.md`.
+
+- **Track B — Non-BMAD operational work (maintenance, tooling, external user requests):**
+	- Create a regular GitHub issue from `.github/ISSUE_TEMPLATE/feature_request.md` or `.github/ISSUE_TEMPLATE/bug_report.md`.
+	- Create a dedicated branch named with the issue number.
+	- Open a PR using the PR template and include a closing keyword (`Closes #N`, `Fixes #N`, `Resolves #N`).
+	- CI enforces the closing keyword via `.github/workflows/pr-traceability-guard.yml`.
+
+Both tracks must satisfy the same quality gates: Conventional Commits, PR template completion, CI green, and traceability from issue to PR.
+
 ---
 
 ## 1. Branching
@@ -36,6 +54,7 @@ This document describes the complete workflow for contributing to this repositor
 	- Use only labels defined in the repository (enforced by pre-push hook).
 - **Link issues/stories/epics:**
 	- Use `Closes #XX` or `Related to #YY` in the PR description for traceability.
+	- PRs without a closing keyword for the primary issue are blocked by `.github/workflows/pr-traceability-guard.yml`.
 
 ## 4. Local Checks Before Push
 - **Run all tests, lint, and build locally:**
@@ -49,6 +68,11 @@ This document describes the complete workflow for contributing to this repositor
 - **CI runs on every PR:**
 	- Lint, test, build, security checks, coverage, etc.
 	- PR must be green before merge.
+
+## 5.1 App -> Specs Back-Sync
+- On issue close, `.github/workflows/back-sync-specs.yml` syncs status back to `doc-classifier-specs`.
+- The workflow runs `scripts/sync_status.py` in the specs repo and commits the resulting status/frontmatter updates.
+- This keeps BMAD artifacts aligned even when implementation work started from a GitHub issue.
 
 ## 6. Merge Strategy
 - **Squash & merge** only (no merge commits, no rebase merges).
