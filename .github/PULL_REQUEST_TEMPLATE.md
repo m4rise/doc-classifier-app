@@ -3,9 +3,12 @@
 
 ## Related Work
 
-- **User Story:** <!-- Optional. e.g. Story #42 — short description. Link to the issue for full context. -->
-- **Epic:** <!-- Optional. e.g. Epic #7 — short description. Link to the epic if relevant. -->
-- **Related Issue(s):** <!-- e.g. Closes #53, Related to #42. Reference at least one tracked item if possible. If none, explain in Summary. -->
+- **Branch:** <!-- e.g. feature/DC-42-nestjs-backend-bootstrap -->
+- **User Story:** <!-- e.g. #42 — Story 1.2 — NestJS Backend Bootstrap -->
+- **Epic:** <!-- e.g. #7 — Epic 1 — Infrastructure -->
+- **BMAD Story File:** <!-- e.g. _bmad-output/doc-classifier/implementation-artifacts/DC-1-2-nestjs-backend-bootstrap.md -->
+- **Closing Issue (required):** <!-- Use a closing keyword so GitHub links PR→Issue automatically. Example: Closes #53 -->
+- **Related Issue(s) (optional):** <!-- e.g. Related to #42, Blocks #60 -->
 
 ## Tasks / Acceptance Criteria Addressed
 <!-- List the Acceptance Criteria and Implementation Tasks from the linked issue(s) that this PR addresses. Be specific (e.g. "AC1, AC2, Task 1, Task 3"). -->
@@ -21,6 +24,7 @@
 - [ ] Unit/integration tests added or updated
 - [ ] Documentation updated if needed
 - [ ] CI green (build, lint, test)
+- [ ] PR body contains a closing keyword (`Closes #N` / `Fixes #N` / `Resolves #N`) for the primary story issue
 - [ ] Ready for merge to main
 
 ---

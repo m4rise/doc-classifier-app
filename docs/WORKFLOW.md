@@ -7,12 +7,15 @@ This document describes the complete workflow for contributing to this repositor
 
 ## 1. Branching
 - **Always create a dedicated branch** for each feature, bugfix, refactor, or improvement.
-- **Branch naming:**
-	- `feat/<scope>-<short-desc>` (feature)
-	- `fix/<scope>-<short-desc>` (bugfix)
-	- `chore/<scope>-<short-desc>` (tooling, config)
-	- `docs/<scope>-<short-desc>` (documentation)
-	- Example: `feat/frontend-accessibility-audit`
+- **Branch naming** — include the issue number for full BMAD traceability:
+	- `feature/DC-{issue-number}-<short-desc>` (feature / story)
+	- `fix/DC-{issue-number}-<short-desc>` (bugfix)
+	- `chore/<short-desc>` (tooling, config — no issue required)
+	- `docs/<short-desc>` (documentation — no issue required)
+	- Examples:
+		- `feature/DC-42-nestjs-backend-bootstrap`
+		- `fix/DC-67-auth-token-expiry`
+	- The issue number is suggested in the GitHub story issue body under **Suggested Branch**.
 
 ## 2. Conventional Commits
 - **All commits must follow [Conventional Commits](https://www.conventionalcommits.org/):**

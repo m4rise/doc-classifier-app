@@ -5,6 +5,11 @@ labels: [epic]
 assignees: []
 ---
 
+<!-- BMAD Traceability -->
+> **Project Key:** DC
+> **BMAD Source:** `_bmad-output/doc-classifier/planning-artifacts/DC-epics.md`
+> **Epic ID:** N <!-- e.g. 1 for Epic 1 -->
+
 ## Objective
 _What major capability does this epic deliver to the product?_
 
@@ -14,9 +19,10 @@ _What major capability does this epic deliver to the product?_
 - **ARs covered:** <!-- e.g. AR10–AR16 -->
 
 ## Included Stories
-- [ ] Story N.0 —
-- [ ] Story N.1 —
-- [ ] Story N.2 —
+<!-- Link each story issue once created: e.g. - [ ] #42 — Story N.1 — Short title -->
+- [ ] #<!-- issue --> — Story N.0 —
+- [ ] #<!-- issue --> — Story N.1 —
+- [ ] #<!-- issue --> — Story N.2 —
 
 ## ADRs Required Before Implementation
 - [ ] ADR-XXX — _Decision name_

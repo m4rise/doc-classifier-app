@@ -1,0 +1,75 @@
+name: Back-sync BMAD specs on issue close
+
+on:
+  issues:
+    types: [closed]
+
+# Prevent concurrent runs for the same issue
+concurrency:
+  group: back-sync-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync closed issue to BMAD story
+    runs-on: ubuntu-latest
+    # Only run if the issue title matches the [N.M] story pattern
+    if: startsWith(github.event.issue.title, '[')
+
+    steps:
+      - name: Check title matches story pattern
+        id: check
+        run: |
+          TITLE="${{ github.event.issue.title }}"
+          if echo "$TITLE" | grep -qE '^\[[0-9]+\.[0-9]+\]'; then
+            echo "is_story=true" >> "$GITHUB_OUTPUT"
+            echo "✅ Story issue detected: $TITLE"
+          else
+            echo "is_story=false" >> "$GITHUB_OUTPUT"
+            echo "ℹ️  Issue title does not match [N.M] pattern — skipping."
+          fi
+
+      - name: Checkout doc-classifier-specs
+        if: steps.check.outputs.is_story == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: m4rise/doc-classifier-specs
+          token: ${{ secrets.SPECS_REPO_PAT }}
+          path: specs
+
+      - name: Set up Python
+        if: steps.check.outputs.is_story == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        if: steps.check.outputs.is_story == 'true'
+        run: pip install requests pyyaml
+
+      - name: Run sync_status.py
+        if: steps.check.outputs.is_story == 'true'
+        working-directory: specs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/sync_status.py \
+            --issue-number "${{ github.event.issue.number }}" \
+            --issue-title  "${{ github.event.issue.title }}" \
+            --project-key  DC \
+            --project-dir  doc-classifier
+
+      - name: Commit and push changes
+        if: steps.check.outputs.is_story == 'true'
+        working-directory: specs
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "ℹ️  No changes to commit."
+          else
+            git commit -m "chore(sync): mark story ${{ github.event.issue.title }} as done [skip ci]"
+            git push
+            echo "✅ Pushed back-sync commit."
+          fi
