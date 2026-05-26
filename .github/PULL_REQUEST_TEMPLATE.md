@@ -1,6 +1,5 @@
 # Pull Request
 
-
 ## Related Work
 
 - **Branch:** <!-- e.g. feature/DC-42-nestjs-backend-bootstrap -->
@@ -11,14 +10,17 @@
 - **Related Issue(s) (optional):** <!-- e.g. Related to #42, Blocks #60 -->
 
 ## Tasks / Acceptance Criteria Addressed
+
 <!-- List the Acceptance Criteria and Implementation Tasks from the linked issue(s) that this PR addresses. Be specific (e.g. "AC1, AC2, Task 1, Task 3"). -->
 
 ## Definition of Ready (DoR)
+
 - [ ] All dependencies and blockers resolved
 - [ ] Acceptance criteria are clear and agreed
 - [ ] Story/epic is up-to-date in Kanban board
 
 ## Definition of Done (DoD)
+
 - [ ] All acceptance criteria met
 - [ ] Code follows architecture conventions
 - [ ] Unit/integration tests added or updated
@@ -33,7 +35,7 @@
 
 <!-- One paragraph: what does this PR do and why? If no issue/story/epic is linked, explain why (e.g. project-wide improvement, refactor, etc.). -->
 
-## Type of change
+## Type of change (check all that apply)
 
 - [ ] feat — new feature
 - [ ] fix — bug fix
@@ -42,21 +44,21 @@
 - [ ] refactor — no functional change
 - [ ] test — tests only
 
-
-
-## Changes
+## Changes (required)
 
 <!-- Bullet list of meaningful changes. One bullet = one logical unit. -->
 
+## Risks / Points to watch (optional)
+
+<!-- List potential risks, impacts, or points to monitor during/after merge. -->
 
 ## Testing
-
-<!-- Checklist below is an example. Adapt items to what is relevant for this PR (add/remove as needed). -->
 
 - [ ] `npm run test` passes locally
 - [ ] `npm run lint` passes locally
 - [ ] `npm run build` passes locally
 - [ ] Tested manually (describe below)
+- [ ] N/A
 
 <!-- Manual test steps if applicable -->
 
