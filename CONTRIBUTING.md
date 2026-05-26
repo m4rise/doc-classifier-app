@@ -20,6 +20,12 @@ See [docs/WORKFLOW.md](docs/WORKFLOW.md) for:
 - CI, release, and changelog automation
 - FAQ and best practices
 
+### Which flow should I use?
+
+- **BMAD product scope (epic/story work):** use the BMAD track documented in [docs/WORKFLOW.md](docs/WORKFLOW.md) and the scripts reference in `doc-classifier-specs/scripts/README.md`.
+- **Non-BMAD operational scope (maintenance, tooling, external requests):** use issue templates (`feature_request` / `bug_report`), branch from issue number, then PR with `Closes #N`.
+- In both cases, quality gates are identical: Conventional Commits, PR template completion, and green CI.
+
 ---
 
 ---

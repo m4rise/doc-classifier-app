@@ -33,6 +33,10 @@ module.exports = {
         "dependencies",
         "release",
         "workspace",
+        // Other
+        "types",
+        "docs",
+        "tests",
       ],
     ],
   },

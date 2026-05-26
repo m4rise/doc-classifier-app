@@ -5,6 +5,13 @@ labels: [story]
 assignees: []
 ---
 
+<!-- BMAD Traceability -->
+> **Project Key:** DC
+> **Story ID:** N.M <!-- e.g. 1.2 -->
+> **Epic:** #<!-- epic issue number --> — Epic N — Short title
+> **BMAD Source:** `_bmad-output/doc-classifier/implementation-artifacts/DC-N-M-<slug>.md`
+> **Suggested Branch:** `feature/DC-#<!-- issue number -->-<short-desc>`
+
 ## User Story
 As a **[actor: developer | user | admin | ai-agent]**,
 I want **[goal]**,

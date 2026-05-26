@@ -1,4 +1,4 @@
-# Recommandations d'amélioration — fullstack-lab
+# Recommandations d'amélioration — doc-classifier
 
 _Document de référence généré le 2026-05-19. Mis à jour le 2026-05-19 après analyse approfondie des ADRs, de l'architecture, et du positionnement marché._
 
@@ -25,7 +25,7 @@ _Document de référence généré le 2026-05-19. Mis à jour le 2026-05-19 apr�
 
 ### A1. Pipeline asynchrone — Phase 2 Cloud Tasks, Phase 3 Kafka _(en cours de planification)_
 
-> ADR-ARCH-004 documente le choix sync comme intentionnel et borné au MVP.  
+> ADR-ARCH-004 documente le choix sync comme intentionnel et borné au MVP.
 > ADR-EVO-001 a été créé avec statut **Proposed** — il documente les deux phases d'évolution.
 
 **Problème**
