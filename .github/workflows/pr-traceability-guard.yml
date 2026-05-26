@@ -10,11 +10,20 @@ jobs:
     name: Closing Keyword Required
     runs-on: ubuntu-latest
     steps:
-      - name: Validate PR body has closing keyword
+      - name: Validate PR body closes a linked issue (Renovate PRs auto-exempt)
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_HEAD_REF: ${{ github.head_ref }}
         run: |
           set -euo pipefail
+
+          # Exclude PRs if author is Renovate and branch matches renovate/*
+          if { [ "$PR_AUTHOR" = "renovate[bot]" ] || [ "$PR_AUTHOR" = "renovate-bot" ]; } \
+            && [[ "$PR_HEAD_REF" == renovate/* ]]; then
+            echo "Traceability check skipped: Renovate PR."
+            exit 0
+          fi
 
           if echo "${PR_BODY}" | grep -Eiq '\b(closes|closed|fixes|fixed|resolves|resolved)\s+#([0-9]+)\b'; then
             echo "Traceability check passed: closing keyword found."
