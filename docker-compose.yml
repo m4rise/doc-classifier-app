@@ -36,7 +36,7 @@ services:
       # Protect the generated Prisma client from being overwritten by the host mount.
       # Same pattern as node_modules: the image-built artefact takes precedence.
       - /app/src/generated
-    command: npm run start:dev
+    command: sh -c "npx prisma generate && npm run start:dev"
 
 volumes:
   postgres_data:
