@@ -62,4 +62,22 @@ export default tseslint.config(
       ],
     },
   },
+  // Specific rules for test files
+  // Relax some rules in test files to allow for more flexible testing patterns, such as using `any` for mocks or allowing unsafe calls that are common in tests.
+  {
+    files: [
+      '**/*.spec.ts',
+      '**/*.test.ts',
+      '**/*.e2e-spec.ts',
+      '**/test/**',
+      '**/e2e/**',
+    ],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: ['./tsconfig.spec.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
 );
