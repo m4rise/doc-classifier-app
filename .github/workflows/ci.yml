@@ -187,7 +187,6 @@ jobs:
   security:
     name: Security
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v6
 
