@@ -49,13 +49,13 @@ model User {
 }
 
 model RefreshToken {
-  id        String   @id @default(uuid())
-  token     String
+  id        String    @id @default(uuid())
+  tokenHash String
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   revokedAt DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@map("refresh_tokens")
 }

@@ -33,7 +33,9 @@ describe('Prisma auth schema contract (DC-2.1)', () => {
     expect(schema).toMatch(
       /model\s+RefreshToken\s*\{[\s\S]*\bid\s+String\s+@id\s+@default\(uuid\(\)\)/m,
     );
-    expect(schema).toMatch(/model\s+RefreshToken\s*\{[\s\S]*\btoken\s+String/m);
+    expect(schema).toMatch(
+      /model\s+RefreshToken\s*\{[\s\S]*\btokenHash\s+String/m,
+    );
     expect(schema).toMatch(
       /model\s+RefreshToken\s*\{[\s\S]*\buserId\s+String/m,
     );
