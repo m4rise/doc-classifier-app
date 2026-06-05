@@ -1,3 +1,9 @@
+## [1.3.0](https://github.com/m4rise/doc-classifier-app/compare/v1.2.0...v1.3.0) (2026-06-05)
+
+### Features
+
+* **auth:** register with versioned ToS consent ([#94](https://github.com/m4rise/doc-classifier-app/issues/94)) ([27a11e2](https://github.com/m4rise/doc-classifier-app/commit/27a11e273f11745492b072d4c59684c62ec9de3e))
+
 ## [1.2.0](https://github.com/m4rise/doc-classifier-app/compare/v1.1.0...v1.2.0) (2026-06-04)
 
 ### Features
