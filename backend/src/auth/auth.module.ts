@@ -1,8 +1,12 @@
 import { Module } from '@nestjs/common';
-import { CURRENT_TOS_VERSION } from './application/auth.tokens';
-import { RegisterUseCase } from './application/register.use-case';
-import { PASSWORD_HASHER } from './domain/password-hasher';
-import { USER_REPOSITORY } from './domain/user.repository';
+import {
+  CURRENT_TOS_VERSION,
+  PASSWORD_HASHER,
+  USER_REPOSITORY,
+} from './application/auth.tokens';
+import { PasswordHasher } from './application/ports/password-hasher.port';
+import { UserRepository } from './application/ports/user.repository.port';
+import { RegisterUseCase } from './application/use-cases/register.use-case';
 import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository';
 import { Argon2PasswordHasher } from './infrastructure/security/argon2-password-hasher';
 import { AuthController } from './presentation/auth.controller';
@@ -21,8 +25,8 @@ import { AuthController } from './presentation/auth.controller';
     {
       provide: RegisterUseCase,
       useFactory: (
-        userRepository: PrismaUserRepository,
-        passwordHasher: Argon2PasswordHasher,
+        userRepository: UserRepository,
+        passwordHasher: PasswordHasher,
         currentTosVersion: string,
       ) =>
         new RegisterUseCase(userRepository, passwordHasher, currentTosVersion),

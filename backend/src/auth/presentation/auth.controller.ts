@@ -10,13 +10,14 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
+import { RegisterUseCase } from '../application/use-cases/register.use-case';
 import {
   EmailAlreadyInUseError,
   TosConsentRequiredError,
   UnsupportedTosVersionError,
-} from '../application/register.errors';
-import { RegisterUseCase } from '../application/register.use-case';
+} from '../domain/errors/register.errors';
+import { RegisterResponseDto } from './dto/register-response.dto';
 import { RegisterDto } from './dto/register.dto';
 
 @Controller('api/v1/auth')
@@ -26,15 +27,19 @@ export class AuthController {
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
-  async register(@Body() dto: RegisterDto, @Req() req: Request) {
+  async register(
+    @Body() dto: RegisterDto,
+    @Req() req: Request,
+  ): Promise<RegisterResponseDto> {
     try {
-      return await this.registerUseCase.execute({
+      const user = await this.registerUseCase.execute({
         email: dto.email,
         password: dto.password,
         tosAccepted: dto.tosAccepted,
         tosVersion: dto.tosVersion,
         ipAddress: req.ip,
       });
+      return { id: user.id, email: user.email.value, role: user.role };
     } catch (error) {
       if (error instanceof EmailAlreadyInUseError) {
         throw new ConflictException(error.message);

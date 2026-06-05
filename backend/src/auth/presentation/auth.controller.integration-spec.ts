@@ -66,6 +66,7 @@ describe('AuthController integration', () => {
 
   afterAll(async () => {
     await app.close();
+    await prisma.$disconnect();
   });
 
   it('POST /api/v1/auth/register returns 201 and creates consent record', async () => {

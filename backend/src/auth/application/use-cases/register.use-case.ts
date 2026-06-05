@@ -1,11 +1,12 @@
-import { PasswordHasher } from '../domain/password-hasher';
-import { User } from '../domain/user.entity';
-import { UserRepository } from '../domain/user.repository';
+import { User } from '../../domain/entities/user.entity';
 import {
   EmailAlreadyInUseError,
   TosConsentRequiredError,
   UnsupportedTosVersionError,
-} from './register.errors';
+} from '../../domain/errors/register.errors';
+import { Email } from '../../domain/value-objects/email.vo';
+import { PasswordHasher } from '../ports/password-hasher.port';
+import { UserRepository } from '../ports/user.repository.port';
 
 export interface RegisterInput {
   email: string;
@@ -31,8 +32,8 @@ export class RegisterUseCase {
       throw new UnsupportedTosVersionError();
     }
 
-    const normalizedEmail = input.email.trim().toLowerCase();
-    const existingUser = await this.userRepository.findByEmail(normalizedEmail);
+    const email = Email.create(input.email);
+    const existingUser = await this.userRepository.findByEmail(email);
 
     if (existingUser) {
       throw new EmailAlreadyInUseError();
@@ -41,7 +42,7 @@ export class RegisterUseCase {
     const passwordHash = await this.passwordHasher.hash(input.password);
 
     return this.userRepository.createWithConsent({
-      email: normalizedEmail,
+      email,
       passwordHash,
       tosVersion: input.tosVersion,
       acceptedAt: new Date(),

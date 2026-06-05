@@ -29,6 +29,7 @@ const config: Config = {
     {
       displayName: 'unit',
       testMatch: ['<rootDir>/src/**/*.spec.ts'],
+      setupFiles: ['<rootDir>/test/jest.setup.js'],
       transform: {
         '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }],
       },
@@ -37,6 +38,7 @@ const config: Config = {
     {
       displayName: 'integration',
       testMatch: ['<rootDir>/src/**/*.integration-spec.ts'],
+      setupFiles: ['<rootDir>/test/jest.setup.js'],
       transform: {
         '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }],
       },
@@ -45,6 +47,7 @@ const config: Config = {
     {
       displayName: 'e2e',
       testMatch: ['<rootDir>/test/**/*.e2e-spec.ts'],
+      setupFiles: ['<rootDir>/test/jest.setup.js'],
       transform: {
         '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }],
       },

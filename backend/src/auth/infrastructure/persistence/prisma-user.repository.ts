@@ -4,8 +4,14 @@ import { PrismaService } from '../../../shared/infrastructure/database/prisma.se
 import {
   CreateUserWithConsentInput,
   UserRepository,
-} from '../../domain/user.repository';
-import { User } from '../../domain/user.entity';
+} from '../../application/ports/user.repository.port';
+import { User, UserRole } from '../../domain/entities/user.entity';
+import { Email } from '../../domain/value-objects/email.vo';
+
+function toDomainRole(role: Role): UserRole {
+  const map: Record<Role, UserRole> = { USER: 'USER', ADMIN: 'ADMIN' };
+  return map[role];
+}
 
 @Injectable()
 export class PrismaUserRepository extends UserRepository {
@@ -13,9 +19,9 @@ export class PrismaUserRepository extends UserRepository {
     super();
   }
 
-  async findByEmail(email: string): Promise<User | null> {
+  async findByEmail(email: Email): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
-      where: { email },
+      where: { email: email.value },
       select: { id: true, email: true, role: true },
     });
 
@@ -23,17 +29,13 @@ export class PrismaUserRepository extends UserRepository {
       return null;
     }
 
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    };
+    return new User(user.id, Email.create(user.email), toDomainRole(user.role));
   }
 
   async createWithConsent(input: CreateUserWithConsentInput): Promise<User> {
     const user = await this.prisma.user.create({
       data: {
-        email: input.email,
+        email: input.email.value,
         passwordHash: input.passwordHash,
         role: Role.USER,
         consentRecords: {
@@ -47,10 +49,6 @@ export class PrismaUserRepository extends UserRepository {
       select: { id: true, email: true, role: true },
     });
 
-    return {
-      id: user.id,
-      email: user.email,
-      role: user.role,
-    };
+    return new User(user.id, Email.create(user.email), toDomainRole(user.role));
   }
 }

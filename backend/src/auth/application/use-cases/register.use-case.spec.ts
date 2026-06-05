@@ -1,27 +1,33 @@
+import { User } from '../../domain/entities/user.entity';
 import {
   EmailAlreadyInUseError,
   TosConsentRequiredError,
-} from './register.errors';
-import { RegisterUseCase } from './register.use-case';
-import { PasswordHasher } from '../domain/password-hasher';
+  UnsupportedTosVersionError,
+} from '../../domain/errors/register.errors';
+import { Email } from '../../domain/value-objects/email.vo';
+import { PasswordHasher } from '../ports/password-hasher.port';
 import {
   CreateUserWithConsentInput,
   UserRepository,
-} from '../domain/user.repository';
-import { User } from '../domain/user.entity';
+} from '../ports/user.repository.port';
+import { RegisterUseCase } from './register.use-case';
 
 class UserRepositoryMock extends UserRepository {
   existingUser: User | null = null;
-  createdUser: User = { id: 'user-1', email: 'john@example.com', role: 'USER' };
+  createdUser: User = new User(
+    'user-1',
+    Email.create('john@example.com'),
+    'USER',
+  );
   lastCreateInput: CreateUserWithConsentInput | null = null;
 
-  findByEmail(email: string): Promise<User | null> {
+  findByEmail(email: Email): Promise<User | null> {
     if (!this.existingUser) {
       return Promise.resolve(null);
     }
 
     return Promise.resolve(
-      this.existingUser.email === email ? this.existingUser : null,
+      this.existingUser.email.value === email.value ? this.existingUser : null,
     );
   }
 
@@ -57,22 +63,20 @@ describe('RegisterUseCase', () => {
 
     expect(result).toEqual(repository.createdUser);
     expect(hasher.hashCalls).toEqual(['super-secure-password']);
-    expect(repository.lastCreateInput).toMatchObject({
-      email: 'john@example.com',
-      passwordHash: hasher.hashedValue,
-      tosVersion: '1.0',
-      ipAddress: '127.0.0.1',
-    });
+    expect(repository.lastCreateInput?.email.value).toBe('john@example.com');
+    expect(repository.lastCreateInput?.passwordHash).toBe(hasher.hashedValue);
+    expect(repository.lastCreateInput?.tosVersion).toBe('1.0');
+    expect(repository.lastCreateInput?.ipAddress).toBe('127.0.0.1');
     expect(repository.lastCreateInput?.acceptedAt).toBeInstanceOf(Date);
   });
 
   it('throws EmailAlreadyInUseError when email is already registered', async () => {
     const repository = new UserRepositoryMock();
-    repository.existingUser = {
-      id: 'existing-user',
-      email: 'john@example.com',
-      role: 'USER',
-    };
+    repository.existingUser = new User(
+      'existing-user',
+      Email.create('john@example.com'),
+      'USER',
+    );
     const hasher = new PasswordHasherMock();
     const useCase = new RegisterUseCase(repository, hasher, '1.0');
 
@@ -101,6 +105,23 @@ describe('RegisterUseCase', () => {
         tosVersion: '1.0',
       }),
     ).rejects.toBeInstanceOf(TosConsentRequiredError);
+    expect(repository.lastCreateInput).toBeNull();
+    expect(hasher.hashCalls).toHaveLength(0);
+  });
+
+  it('throws UnsupportedTosVersionError when tosVersion does not match current version', async () => {
+    const repository = new UserRepositoryMock();
+    const hasher = new PasswordHasherMock();
+    const useCase = new RegisterUseCase(repository, hasher, '1.0');
+
+    await expect(
+      useCase.execute({
+        email: 'john@example.com',
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '0.9',
+      }),
+    ).rejects.toBeInstanceOf(UnsupportedTosVersionError);
     expect(repository.lastCreateInput).toBeNull();
     expect(hasher.hashCalls).toHaveLength(0);
   });

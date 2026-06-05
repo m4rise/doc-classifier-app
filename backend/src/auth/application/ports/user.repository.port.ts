@@ -1,7 +1,8 @@
-import { User } from './user.entity';
+import { User } from '../../domain/entities/user.entity';
+import { Email } from '../../domain/value-objects/email.vo';
 
 export interface CreateUserWithConsentInput {
-  email: string;
+  email: Email;
   passwordHash: string;
   tosVersion: string;
   acceptedAt: Date;
@@ -9,8 +10,6 @@ export interface CreateUserWithConsentInput {
 }
 
 export abstract class UserRepository {
-  abstract findByEmail(email: string): Promise<User | null>;
+  abstract findByEmail(email: Email): Promise<User | null>;
   abstract createWithConsent(input: CreateUserWithConsentInput): Promise<User>;
 }
-
-export const USER_REPOSITORY = Symbol('USER_REPOSITORY');
