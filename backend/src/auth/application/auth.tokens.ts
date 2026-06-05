@@ -1,0 +1,1 @@
+export const CURRENT_TOS_VERSION = Symbol('CURRENT_TOS_VERSION');

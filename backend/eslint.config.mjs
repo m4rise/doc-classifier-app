@@ -67,6 +67,7 @@ export default tseslint.config(
   {
     files: [
       '**/*.spec.ts',
+      '**/*.integration-spec.ts',
       '**/*.test.ts',
       '**/*.e2e-spec.ts',
       '**/test/**',
