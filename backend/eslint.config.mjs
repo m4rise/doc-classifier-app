@@ -62,6 +62,64 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    files: ['src/**/domain/**/*.ts', 'src/**/application/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '@nestjs/*',
+                '@prisma/*',
+                'src/generated/*',
+                '**/generated/prisma',
+                '**/generated/prisma/*',
+                '**/shared/infrastructure/*',
+                '**/infrastructure/*',
+              ],
+              message:
+                'Domain and application layers must stay framework-agnostic. Move NestJS, Prisma, and infrastructure imports to infrastructure/presentation.',
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ['src/*/{domain,application}/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '../../auth/*',
+                '../../documents/*',
+                '../../users/*',
+                '../../ai/*',
+                '../../mcp/*',
+                '../../../auth/*',
+                '../../../documents/*',
+                '../../../users/*',
+                '../../../ai/*',
+                '../../../mcp/*',
+                '../../../../auth/*',
+                '../../../../documents/*',
+                '../../../../users/*',
+                '../../../../ai/*',
+                '../../../../mcp/*',
+              ],
+              message:
+                'Cross-slice imports from domain/application are forbidden. Extract a shared contract or depend on a local port.',
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Specific rules for test files
   // Relax some rules in test files to allow for more flexible testing patterns, such as using `any` for mocks or allowing unsafe calls that are common in tests.
   {

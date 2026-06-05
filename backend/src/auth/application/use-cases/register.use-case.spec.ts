@@ -3,8 +3,9 @@ import {
   EmailAlreadyInUseError,
   TosConsentRequiredError,
   UnsupportedTosVersionError,
+  WeakPasswordError,
 } from '../../domain/errors/register.errors';
-import { Email } from '../../domain/value-objects/email.vo';
+import { Email, InvalidEmailError } from '../../domain/value-objects/email.vo';
 import { PasswordHasher } from '../ports/password-hasher.port';
 import {
   CreateUserWithConsentInput,
@@ -122,6 +123,40 @@ describe('RegisterUseCase', () => {
         tosVersion: '0.9',
       }),
     ).rejects.toBeInstanceOf(UnsupportedTosVersionError);
+    expect(repository.lastCreateInput).toBeNull();
+    expect(hasher.hashCalls).toHaveLength(0);
+  });
+
+  it('throws InvalidEmailError before hashing when email is invalid', async () => {
+    const repository = new UserRepositoryMock();
+    const hasher = new PasswordHasherMock();
+    const useCase = new RegisterUseCase(repository, hasher, '1.0');
+
+    await expect(
+      useCase.execute({
+        email: 'not-an-email',
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      }),
+    ).rejects.toBeInstanceOf(InvalidEmailError);
+    expect(repository.lastCreateInput).toBeNull();
+    expect(hasher.hashCalls).toHaveLength(0);
+  });
+
+  it('throws WeakPasswordError before hashing when password is too short', async () => {
+    const repository = new UserRepositoryMock();
+    const hasher = new PasswordHasherMock();
+    const useCase = new RegisterUseCase(repository, hasher, '1.0');
+
+    await expect(
+      useCase.execute({
+        email: 'john@example.com',
+        password: 'short',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      }),
+    ).rejects.toBeInstanceOf(WeakPasswordError);
     expect(repository.lastCreateInput).toBeNull();
     expect(hasher.hashCalls).toHaveLength(0);
   });

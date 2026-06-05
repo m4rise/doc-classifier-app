@@ -1,5 +1,10 @@
 import type { Config } from 'jest';
 
+const generatedOutputIgnorePatterns = [
+  '<rootDir>/dist/',
+  '<rootDir>/coverage/',
+];
+
 const config: Config = {
   rootDir: '.',
 
@@ -7,10 +12,12 @@ const config: Config = {
 
   testEnvironment: 'node',
 
-  // COVERAGE GLOBAL (ROOT LEVEL)
-  collectCoverage: true,
+  // Coverage is opt-in via `jest --coverage` / `npm run test:cov`.
+  // Integration and e2e suites should not write coverage reports by default.
+  collectCoverage: false,
   coverageDirectory: '<rootDir>/coverage',
   coverageReporters: ['lcov', 'text'],
+  modulePathIgnorePatterns: generatedOutputIgnorePatterns,
   collectCoverageFrom: [
     'src/**/*.ts',
 
@@ -30,6 +37,7 @@ const config: Config = {
       displayName: 'unit',
       testMatch: ['<rootDir>/src/**/*.spec.ts'],
       setupFiles: ['<rootDir>/test/jest.setup.js'],
+      modulePathIgnorePatterns: generatedOutputIgnorePatterns,
       transform: {
         '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }],
       },
@@ -39,6 +47,7 @@ const config: Config = {
       displayName: 'integration',
       testMatch: ['<rootDir>/src/**/*.integration-spec.ts'],
       setupFiles: ['<rootDir>/test/jest.setup.js'],
+      modulePathIgnorePatterns: generatedOutputIgnorePatterns,
       transform: {
         '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }],
       },
@@ -48,6 +57,7 @@ const config: Config = {
       displayName: 'e2e',
       testMatch: ['<rootDir>/test/**/*.e2e-spec.ts'],
       setupFiles: ['<rootDir>/test/jest.setup.js'],
+      modulePathIgnorePatterns: generatedOutputIgnorePatterns,
       transform: {
         '^.+\\.(t|j)s$': ['ts-jest', { tsconfig: 'tsconfig.spec.json' }],
       },

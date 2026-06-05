@@ -16,7 +16,9 @@ import {
   EmailAlreadyInUseError,
   TosConsentRequiredError,
   UnsupportedTosVersionError,
+  WeakPasswordError,
 } from '../domain/errors/register.errors';
+import { InvalidEmailError } from '../domain/value-objects/email.vo';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -50,6 +52,14 @@ export class AuthController {
       }
 
       if (error instanceof UnsupportedTosVersionError) {
+        throw new BadRequestException(error.message);
+      }
+
+      if (error instanceof InvalidEmailError) {
+        throw new BadRequestException(error.message);
+      }
+
+      if (error instanceof WeakPasswordError) {
         throw new BadRequestException(error.message);
       }
 

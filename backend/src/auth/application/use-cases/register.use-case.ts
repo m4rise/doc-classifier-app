@@ -4,6 +4,7 @@ import {
   TosConsentRequiredError,
   UnsupportedTosVersionError,
 } from '../../domain/errors/register.errors';
+import { PasswordPolicy } from '../../domain/services/password-policy';
 import { Email } from '../../domain/value-objects/email.vo';
 import { PasswordHasher } from '../ports/password-hasher.port';
 import { UserRepository } from '../ports/user.repository.port';
@@ -33,6 +34,7 @@ export class RegisterUseCase {
     }
 
     const email = Email.create(input.email);
+    PasswordPolicy.assertRegisterable(input.password);
     const existingUser = await this.userRepository.findByEmail(email);
 
     if (existingUser) {
