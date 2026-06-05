@@ -9,7 +9,15 @@ export interface CreateUserWithConsentInput {
   ipAddress?: string;
 }
 
+export interface UserCredentials {
+  user: User;
+  passwordHash: string;
+}
+
 export abstract class UserRepository {
   abstract findByEmail(email: Email): Promise<User | null>;
+  abstract findCredentialsByEmail(
+    email: Email,
+  ): Promise<UserCredentials | null>;
   abstract createWithConsent(input: CreateUserWithConsentInput): Promise<User>;
 }

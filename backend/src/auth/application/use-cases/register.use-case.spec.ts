@@ -9,6 +9,7 @@ import { Email, InvalidEmailError } from '../../domain/value-objects/email.vo';
 import { PasswordHasher } from '../ports/password-hasher.port';
 import {
   CreateUserWithConsentInput,
+  UserCredentials,
   UserRepository,
 } from '../ports/user.repository.port';
 import { RegisterUseCase } from './register.use-case';
@@ -32,6 +33,10 @@ class UserRepositoryMock extends UserRepository {
     );
   }
 
+  findCredentialsByEmail(): Promise<UserCredentials | null> {
+    return Promise.resolve(null);
+  }
+
   createWithConsent(input: CreateUserWithConsentInput): Promise<User> {
     this.lastCreateInput = input;
     return Promise.resolve(this.createdUser);
@@ -45,6 +50,10 @@ class PasswordHasherMock extends PasswordHasher {
   hash(plainPassword: string): Promise<string> {
     this.hashCalls.push(plainPassword);
     return Promise.resolve(this.hashedValue);
+  }
+
+  verify(): Promise<boolean> {
+    return Promise.resolve(false);
   }
 }
 

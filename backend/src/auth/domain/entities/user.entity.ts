@@ -7,5 +7,6 @@ export class User {
     readonly id: string,
     readonly email: Email,
     readonly role: UserRole,
+    readonly isActive = true,
   ) {}
 }

@@ -1,4 +1,5 @@
 import { INestApplication } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
@@ -7,6 +8,17 @@ import { PrismaService } from '../../shared/infrastructure/database/prisma.servi
 
 interface RegisterResponseBody {
   id: string;
+  email: string;
+  role: string;
+}
+
+interface LoginResponseBody {
+  accessToken: string;
+  expiresIn: number;
+}
+
+interface AuthenticatedUserResponseBody {
+  userId: string;
   email: string;
   role: string;
 }
@@ -151,6 +163,118 @@ describe('AuthController integration', () => {
         expect(asErrorMessageBody(res.body).message).toBe(
           'ToS consent is required',
         );
+      });
+  });
+
+  it('POST /api/v1/auth/login returns 200 with a JWT access token', async () => {
+    const email = `login.${Date.now()}@example.com`;
+
+    await request(app.getHttpServer()).post('/api/v1/auth/register').send({
+      email,
+      password: 'super-secure-password',
+      tosAccepted: true,
+      tosVersion: '1.0',
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password: 'super-secure-password',
+      })
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        const body = res.body as LoginResponseBody;
+        expect(typeof body.accessToken).toBe('string');
+        expect(body.accessToken.split('.')).toHaveLength(3);
+        expect(body.expiresIn).toBe(900);
+      });
+  });
+
+  it('POST /api/v1/auth/login returns 401 when password is wrong', async () => {
+    const email = `wrong-password.${Date.now()}@example.com`;
+
+    await request(app.getHttpServer()).post('/api/v1/auth/register').send({
+      email,
+      password: 'super-secure-password',
+      tosAccepted: true,
+      tosVersion: '1.0',
+    });
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password: 'wrong-password',
+      })
+      .expect(401)
+      .expect((res: HttpResponseBody) => {
+        expect(asErrorMessageBody(res.body).message).toBe(
+          'Invalid credentials',
+        );
+      });
+  });
+
+  it('GET /api/v1/auth/me returns req.user from a valid JWT access token', async () => {
+    const email = `me.${Date.now()}@example.com`;
+
+    const registerResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .send({
+        email,
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      })
+      .expect(201);
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password: 'super-secure-password',
+      })
+      .expect(200);
+    const token = (loginResponse.body as LoginResponseBody).accessToken;
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        const body = res.body as AuthenticatedUserResponseBody;
+        expect(body).toEqual({
+          userId: (registerResponse.body as RegisterResponseBody).id,
+          email,
+          role: 'USER',
+        });
+      });
+  });
+
+  it('GET /api/v1/auth/me returns 401 when access token is invalid', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'Bearer invalid-token')
+      .expect(401);
+  });
+
+  it('GET /api/v1/auth/me returns 401 Token expired when access token is expired', async () => {
+    const jwtService = app.get(JwtService);
+    const expiredToken = jwtService.sign(
+      {
+        sub: 'expired-user',
+        email: 'expired@example.com',
+        role: 'USER',
+      },
+      { expiresIn: '-1s' },
+    );
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${expiredToken}`)
+      .expect(401)
+      .expect((res: HttpResponseBody) => {
+        expect(asErrorMessageBody(res.body).message).toBe('Token expired');
       });
   });
 });
