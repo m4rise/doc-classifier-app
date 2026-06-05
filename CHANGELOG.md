@@ -1,3 +1,9 @@
+## [1.4.0](https://github.com/m4rise/doc-classifier-app/compare/v1.3.0...v1.4.0) (2026-06-05)
+
+### Features
+
+* **auth:** add login flow and JWT access token guard ([#95](https://github.com/m4rise/doc-classifier-app/issues/95)) ([c401900](https://github.com/m4rise/doc-classifier-app/commit/c401900c4e274ed2804b7346c7d263d95c747121))
+
 ## [1.3.0](https://github.com/m4rise/doc-classifier-app/compare/v1.2.0...v1.3.0) (2026-06-05)
 
 ### Features
