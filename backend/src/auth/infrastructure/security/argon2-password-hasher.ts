@@ -12,4 +12,8 @@ export class Argon2PasswordHasher extends PasswordHasher {
       parallelism: 1,
     });
   }
+
+  async verify(hash: string, plainPassword: string): Promise<boolean> {
+    return argon2.verify(hash, plainPassword);
+  }
 }

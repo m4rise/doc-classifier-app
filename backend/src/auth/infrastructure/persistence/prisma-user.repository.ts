@@ -4,6 +4,7 @@ import { PrismaService } from '../../../shared/infrastructure/database/prisma.se
 import {
   CreateUserWithConsentInput,
   UserRepository,
+  UserCredentials,
 } from '../../application/ports/user.repository.port';
 import { User, UserRole } from '../../domain/entities/user.entity';
 import { EmailAlreadyInUseError } from '../../domain/errors/register.errors';
@@ -30,14 +31,46 @@ export class PrismaUserRepository extends UserRepository {
   async findByEmail(email: Email): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
       where: { email: email.value },
-      select: { id: true, email: true, role: true },
+      select: { id: true, email: true, role: true, isActive: true },
     });
 
     if (!user) {
       return null;
     }
 
-    return new User(user.id, Email.create(user.email), toDomainRole(user.role));
+    return new User(
+      user.id,
+      Email.create(user.email),
+      toDomainRole(user.role),
+      user.isActive,
+    );
+  }
+
+  async findCredentialsByEmail(email: Email): Promise<UserCredentials | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.value },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isActive: true,
+        passwordHash: true,
+      },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    return {
+      user: new User(
+        user.id,
+        Email.create(user.email),
+        toDomainRole(user.role),
+        user.isActive,
+      ),
+      passwordHash: user.passwordHash,
+    };
   }
 
   async createWithConsent(input: CreateUserWithConsentInput): Promise<User> {
@@ -62,6 +95,7 @@ export class PrismaUserRepository extends UserRepository {
         user.id,
         Email.create(user.email),
         toDomainRole(user.role),
+        true,
       );
     } catch (error) {
       if (isUniqueEmailConstraintViolation(error)) {
