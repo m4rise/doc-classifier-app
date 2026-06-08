@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types';
 import { AppModule } from '../../app.module';
+import { resolveJwtRefreshSecret } from '../infrastructure/security/jwt-refresh-secret';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 
 interface RegisterResponseBody {
@@ -14,6 +15,13 @@ interface RegisterResponseBody {
 
 interface LoginResponseBody {
   accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+}
+
+interface RefreshTokenResponseBody {
+  accessToken: string;
+  refreshToken: string;
   expiresIn: number;
 }
 
@@ -72,6 +80,7 @@ describe('AuthController integration', () => {
   });
 
   beforeEach(async () => {
+    await prisma.refreshToken.deleteMany();
     await prisma.consentRecord.deleteMany();
     await prisma.user.deleteMany();
   });
@@ -187,7 +196,105 @@ describe('AuthController integration', () => {
         const body = res.body as LoginResponseBody;
         expect(typeof body.accessToken).toBe('string');
         expect(body.accessToken.split('.')).toHaveLength(3);
+        expect(typeof body.refreshToken).toBe('string');
+        expect(body.refreshToken.split('.')).toHaveLength(3);
         expect(body.expiresIn).toBe(900);
+      });
+
+    const persistedUser = await prisma.user.findUnique({
+      where: { email },
+      include: { refreshTokens: true },
+    });
+
+    expect(persistedUser?.refreshTokens).toHaveLength(1);
+    expect(persistedUser?.refreshTokens[0].jti).toEqual(expect.any(String));
+    expect(
+      persistedUser?.refreshTokens[0].tokenHash.startsWith('$argon2id$'),
+    ).toBe(true);
+  });
+
+  it('POST /api/v1/auth/refresh rotates refresh token and rejects old token reuse', async () => {
+    const email = `refresh.${Date.now()}@example.com`;
+
+    await request(app.getHttpServer()).post('/api/v1/auth/register').send({
+      email,
+      password: 'super-secure-password',
+      tosAccepted: true,
+      tosVersion: '1.0',
+    });
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password: 'super-secure-password',
+      })
+      .expect(200);
+    const oldRefreshToken = (loginResponse.body as LoginResponseBody)
+      .refreshToken;
+
+    const refreshResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', `Bearer ${oldRefreshToken}`)
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        const body = res.body as RefreshTokenResponseBody;
+        expect(typeof body.accessToken).toBe('string');
+        expect(body.accessToken.split('.')).toHaveLength(3);
+        expect(typeof body.refreshToken).toBe('string');
+        expect(body.refreshToken.split('.')).toHaveLength(3);
+        expect(body.refreshToken).not.toBe(oldRefreshToken);
+        expect(body.expiresIn).toBe(900);
+      });
+
+    const persistedUser = await prisma.user.findUnique({
+      where: { email },
+      include: { refreshTokens: { orderBy: { createdAt: 'asc' } } },
+    });
+
+    expect(persistedUser?.refreshTokens).toHaveLength(2);
+    expect(persistedUser?.refreshTokens[0].revokedAt).toBeInstanceOf(Date);
+    expect(persistedUser?.refreshTokens[1].revokedAt).toBeNull();
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', `Bearer ${oldRefreshToken}`)
+      .expect(401)
+      .expect((res: HttpResponseBody) => {
+        expect(asErrorMessageBody(res.body).message).toBe(
+          'Invalid refresh token',
+        );
+      });
+
+    const newRefreshToken = (refreshResponse.body as RefreshTokenResponseBody)
+      .refreshToken;
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', `Bearer ${newRefreshToken}`)
+      .expect(401);
+  });
+
+  it('POST /api/v1/auth/refresh returns 401 Refresh token expired when token is expired', async () => {
+    const jwtService = app.get(JwtService);
+    const expiredRefreshToken = jwtService.sign(
+      {
+        sub: 'expired-user',
+        email: 'expired@example.com',
+        role: 'USER',
+        jti: 'expired-jti',
+      },
+      { secret: resolveJwtRefreshSecret(), expiresIn: '-1s' },
+    );
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', `Bearer ${expiredRefreshToken}`)
+      .expect(401)
+      .expect((res: HttpResponseBody) => {
+        expect(asErrorMessageBody(res.body).message).toBe(
+          'Refresh token expired',
+        );
       });
   });
 

@@ -50,6 +50,7 @@ model User {
 
 model RefreshToken {
   id        String    @id @default(uuid())
+  jti       String    @unique
   tokenHash String
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)

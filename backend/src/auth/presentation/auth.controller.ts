@@ -6,18 +6,22 @@ import {
   Get,
   HttpCode,
   HttpStatus,
-  Inject,
   Post,
   Req,
+  UnauthorizedException,
   UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
-import { JWT_ACCESS_EXPIRES_IN_SECONDS } from '../application/auth.tokens';
-import type { JwtAccessTokenPayload } from '../application/jwt-access-token-payload';
+import { IssueAuthTokensUseCase } from '../application/use-cases/issue-auth-tokens.use-case';
+import { RefreshTokenUseCase } from '../application/use-cases/refresh-token.use-case';
 import { RegisterUseCase } from '../application/use-cases/register.use-case';
+import {
+  RefreshTokenExpiredError,
+  RefreshTokenInvalidError,
+  RefreshTokenReusedError,
+} from '../domain/errors/refresh-token.errors';
 import {
   EmailAlreadyInUseError,
   TosConsentRequiredError,
@@ -27,9 +31,12 @@ import {
 import { InvalidEmailError } from '../domain/value-objects/email.vo';
 import { JwtAuthGuard } from '../infrastructure/passport/jwt-auth.guard';
 import { LocalAuthGuard } from '../infrastructure/passport/local-auth.guard';
+import { RefreshTokenGuard } from '../infrastructure/passport/refresh-token.guard';
+import type { RefreshTokenRequest } from '../infrastructure/passport/refresh-token-request';
 import type { AuthenticatedRequest } from './authenticated-request';
 import { AuthenticatedUserResponseDto } from './dto/authenticated-user-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { RefreshTokenResponseDto } from './dto/refresh-token-response.dto';
 import { RegisterResponseDto } from './dto/register-response.dto';
 import { RegisterDto } from './dto/register.dto';
 
@@ -37,9 +44,8 @@ import { RegisterDto } from './dto/register.dto';
 export class AuthController {
   constructor(
     private readonly registerUseCase: RegisterUseCase,
-    private readonly jwtService: JwtService,
-    @Inject(JWT_ACCESS_EXPIRES_IN_SECONDS)
-    private readonly jwtAccessExpiresInSeconds: number,
+    private readonly issueAuthTokensUseCase: IssueAuthTokensUseCase,
+    private readonly refreshTokenUseCase: RefreshTokenUseCase,
   ) {}
 
   @Post('register')
@@ -86,17 +92,35 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
-  login(@Req() req: AuthenticatedRequest): LoginResponseDto {
-    const payload: JwtAccessTokenPayload = {
-      sub: req.user.userId,
-      email: req.user.email,
-      role: req.user.role,
-    };
+  async login(@Req() req: AuthenticatedRequest): Promise<LoginResponseDto> {
+    return this.issueAuthTokensUseCase.execute(req.user);
+  }
 
-    return {
-      accessToken: this.jwtService.sign(payload),
-      expiresIn: this.jwtAccessExpiresInSeconds,
-    };
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(RefreshTokenGuard)
+  async refresh(
+    @Req() req: RefreshTokenRequest,
+  ): Promise<RefreshTokenResponseDto> {
+    try {
+      return await this.refreshTokenUseCase.execute({
+        refreshToken: req.user.refreshToken,
+        payload: req.user.payload,
+      });
+    } catch (error) {
+      if (error instanceof RefreshTokenExpiredError) {
+        throw new UnauthorizedException(error.message);
+      }
+
+      if (
+        error instanceof RefreshTokenInvalidError ||
+        error instanceof RefreshTokenReusedError
+      ) {
+        throw new UnauthorizedException('Invalid refresh token');
+      }
+
+      throw error;
+    }
   }
 
   @Get('me')
