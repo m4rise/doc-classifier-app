@@ -1,3 +1,9 @@
+## [1.5.0](https://github.com/m4rise/doc-classifier-app/compare/v1.4.0...v1.5.0) (2026-06-09)
+
+### Features
+
+* **auth:** refresh token rotation with revocation and reuse detection ([#96](https://github.com/m4rise/doc-classifier-app/issues/96)) ([c7a0cc5](https://github.com/m4rise/doc-classifier-app/commit/c7a0cc57d22d923eab2e83894558c39f512500ca))
+
 ## [1.4.0](https://github.com/m4rise/doc-classifier-app/compare/v1.3.0...v1.4.0) (2026-06-05)
 
 ### Features
