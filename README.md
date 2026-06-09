@@ -81,4 +81,5 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, branch naming, and PR pro
 ## Notes
 
 - Architecture targets and decisions are tracked in `docs/adr/`.
+- Authentication and refresh behavior are documented in `docs/AUTH_FLOW.md`.
 - `.mcp.json` must be generated per environment and never hardcoded with a single URL.
