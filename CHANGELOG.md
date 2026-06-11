@@ -1,3 +1,9 @@
+## [1.6.0](https://github.com/m4rise/doc-classifier-app/compare/v1.5.0...v1.6.0) (2026-06-11)
+
+### Features
+
+* **auth:** logout use case with refresh token revocation ([#97](https://github.com/m4rise/doc-classifier-app/issues/97)) ([8a3e784](https://github.com/m4rise/doc-classifier-app/commit/8a3e784784fc7fc87a18d9a6b332690db1b3521b))
+
 ## [1.5.0](https://github.com/m4rise/doc-classifier-app/compare/v1.4.0...v1.5.0) (2026-06-09)
 
 ### Features
