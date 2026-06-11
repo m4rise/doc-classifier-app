@@ -11,9 +11,10 @@ backend:
 - refresh token issuance;
 - refresh token rotation;
 - refresh token revocation and reuse detection.
+- logout-driven refresh token revocation.
 
 It documents the behavior that exists today. Logout is intentionally out of
-scope for now and will be added later.
+scope for access token invalidation because access tokens remain stateless.
 
 ## Components
 
@@ -21,6 +22,7 @@ scope for now and will be added later.
 
 - `POST /api/v1/auth/register`
 - `POST /api/v1/auth/login`
+- `POST /api/v1/auth/logout`
 - `POST /api/v1/auth/refresh`
 - `GET /api/v1/auth/me`
 
@@ -32,6 +34,7 @@ Defined in
 - `RegisterUseCase`
 - `LoginUseCase`
 - `IssueAuthTokensUseCase`
+- `LogoutUseCase`
 - `RefreshTokenUseCase`
 
 Configured in
@@ -224,6 +227,34 @@ This is refresh-token rotation: one refresh token is expected to be used once.
 - [`backend/src/auth/application/use-cases/refresh-token.use-case.ts`](../backend/src/auth/application/use-cases/refresh-token.use-case.ts)
 - [`backend/src/auth/infrastructure/persistence/prisma-refresh-token.repository.ts`](../backend/src/auth/infrastructure/persistence/prisma-refresh-token.repository.ts)
 
+## Flow 5: Logout
+
+### Route
+
+`POST /api/v1/auth/logout`
+
+### Sequence
+
+1. `JwtAuthGuard` validates the access token.
+2. `JwtStrategy` maps the access token payload to an `AuthenticatedUser`.
+3. `LogoutUseCase` revokes all active refresh tokens for the authenticated
+   `userId` by setting `revokedAt`.
+4. The route returns HTTP 200 with an empty response body.
+
+### Relevant code
+
+- [`backend/src/auth/infrastructure/passport/jwt-auth.guard.ts`](../backend/src/auth/infrastructure/passport/jwt-auth.guard.ts)
+- [`backend/src/auth/infrastructure/passport/jwt.strategy.ts`](../backend/src/auth/infrastructure/passport/jwt.strategy.ts)
+- [`backend/src/auth/application/use-cases/logout.use-case.ts`](../backend/src/auth/application/use-cases/logout.use-case.ts)
+- [`backend/src/auth/infrastructure/persistence/prisma-refresh-token.repository.ts`](../backend/src/auth/infrastructure/persistence/prisma-refresh-token.repository.ts)
+
+### Security notes
+
+The logout route receives only the access token. Because the access token does
+not identify a specific refresh token `jti`, logout revokes all active refresh
+tokens for the authenticated user. Already-issued access tokens are still
+stateless and remain valid until their own expiration.
+
 ## Revocation model
 
 ### Single-token revocation
@@ -247,6 +278,17 @@ possible token theft or replay:
 Relevant code:
 
 - [`backend/src/auth/application/use-cases/refresh-token.use-case.ts`](../backend/src/auth/application/use-cases/refresh-token.use-case.ts)
+- [`backend/src/auth/infrastructure/persistence/prisma-refresh-token.repository.ts`](../backend/src/auth/infrastructure/persistence/prisma-refresh-token.repository.ts)
+
+### Logout global revocation
+
+Logout revokes all active refresh tokens for the authenticated user. This
+terminates server-side refresh capability for the user's sessions, while keeping
+access token validation stateless.
+
+Relevant code:
+
+- [`backend/src/auth/application/use-cases/logout.use-case.ts`](../backend/src/auth/application/use-cases/logout.use-case.ts)
 - [`backend/src/auth/infrastructure/persistence/prisma-refresh-token.repository.ts`](../backend/src/auth/infrastructure/persistence/prisma-refresh-token.repository.ts)
 
 ### Important nuance
@@ -276,20 +318,9 @@ Relevant code:
 
 ## Current limitations
 
-- No explicit logout route exists yet.
 - No explicit admin or user-facing session listing exists yet.
 - Access tokens are not revoked server-side once issued.
 - Expired or revoked refresh-token rows require periodic cleanup later.
-
-## Planned extension: logout
-
-When logout is added, this document should be extended with:
-
-- the logout endpoint contract;
-- whether logout revokes one session or all sessions;
-- how the client supplies the refresh token for revocation;
-- whether logout is idempotent;
-- whether access tokens remain stateless after logout.
 
 ## Related files
 
@@ -297,6 +328,7 @@ When logout is added, this document should be extended with:
 - [`backend/src/auth/presentation/auth.controller.ts`](../backend/src/auth/presentation/auth.controller.ts)
 - [`backend/src/auth/application/use-cases/login.use-case.ts`](../backend/src/auth/application/use-cases/login.use-case.ts)
 - [`backend/src/auth/application/use-cases/issue-auth-tokens.use-case.ts`](../backend/src/auth/application/use-cases/issue-auth-tokens.use-case.ts)
+- [`backend/src/auth/application/use-cases/logout.use-case.ts`](../backend/src/auth/application/use-cases/logout.use-case.ts)
 - [`backend/src/auth/application/use-cases/refresh-token.use-case.ts`](../backend/src/auth/application/use-cases/refresh-token.use-case.ts)
 - [`backend/src/auth/infrastructure/passport/local.strategy.ts`](../backend/src/auth/infrastructure/passport/local.strategy.ts)
 - [`backend/src/auth/infrastructure/passport/jwt.strategy.ts`](../backend/src/auth/infrastructure/passport/jwt.strategy.ts)

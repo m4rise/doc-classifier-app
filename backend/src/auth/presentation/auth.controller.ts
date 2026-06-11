@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { IssueAuthTokensUseCase } from '../application/use-cases/issue-auth-tokens.use-case';
+import { LogoutUseCase } from '../application/use-cases/logout.use-case';
 import { RefreshTokenUseCase } from '../application/use-cases/refresh-token.use-case';
 import { RegisterUseCase } from '../application/use-cases/register.use-case';
 import {
@@ -46,6 +47,7 @@ export class AuthController {
     private readonly registerUseCase: RegisterUseCase,
     private readonly issueAuthTokensUseCase: IssueAuthTokensUseCase,
     private readonly refreshTokenUseCase: RefreshTokenUseCase,
+    private readonly logoutUseCase: LogoutUseCase,
   ) {}
 
   @Post('register')
@@ -94,6 +96,13 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   async login(@Req() req: AuthenticatedRequest): Promise<LoginResponseDto> {
     return this.issueAuthTokensUseCase.execute(req.user);
+  }
+
+  @Post('logout')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard)
+  async logout(@Req() req: AuthenticatedRequest): Promise<void> {
+    await this.logoutUseCase.execute({ userId: req.user.userId });
   }
 
   @Post('refresh')

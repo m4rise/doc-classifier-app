@@ -19,6 +19,7 @@ import { RefreshTokenRepository } from './application/ports/refresh-token.reposi
 import { IssueAuthTokensUseCase } from './application/use-cases/issue-auth-tokens.use-case';
 import { UserRepository } from './application/ports/user.repository.port';
 import { LoginUseCase } from './application/use-cases/login.use-case';
+import { LogoutUseCase } from './application/use-cases/logout.use-case';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { RegisterUseCase } from './application/use-cases/register.use-case';
 import { JwtAuthGuard } from './infrastructure/passport/jwt-auth.guard';
@@ -145,6 +146,12 @@ import { AuthController } from './presentation/auth.controller';
         JWT_ACCESS_EXPIRES_IN_SECONDS,
         JWT_REFRESH_EXPIRES_IN_SECONDS,
       ],
+    },
+    {
+      provide: LogoutUseCase,
+      useFactory: (refreshTokenRepository: RefreshTokenRepository) =>
+        new LogoutUseCase(refreshTokenRepository, () => new Date()),
+      inject: [REFRESH_TOKEN_REPOSITORY],
     },
   ],
   exports: [JwtAuthGuard],

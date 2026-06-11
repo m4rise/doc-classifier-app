@@ -275,6 +275,56 @@ describe('AuthController integration', () => {
       .expect(401);
   });
 
+  it('POST /api/v1/auth/logout revokes active refresh tokens and prevents refresh', async () => {
+    const email = `logout.${Date.now()}@example.com`;
+
+    await request(app.getHttpServer()).post('/api/v1/auth/register').send({
+      email,
+      password: 'super-secure-password',
+      tosAccepted: true,
+      tosVersion: '1.0',
+    });
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .send({
+        email,
+        password: 'super-secure-password',
+      })
+      .expect(200);
+    const body = loginResponse.body as LoginResponseBody;
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/logout')
+      .set('Authorization', `Bearer ${body.accessToken}`)
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        expect(res.body).toEqual({});
+      });
+
+    const persistedUser = await prisma.user.findUnique({
+      where: { email },
+      include: { refreshTokens: true },
+    });
+
+    expect(persistedUser?.refreshTokens).toHaveLength(1);
+    expect(persistedUser?.refreshTokens[0].revokedAt).toBeInstanceOf(Date);
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/refresh')
+      .set('Authorization', `Bearer ${body.refreshToken}`)
+      .expect(401)
+      .expect((res: HttpResponseBody) => {
+        expect(asErrorMessageBody(res.body).message).toBe(
+          'Invalid refresh token',
+        );
+      });
+  });
+
+  it('POST /api/v1/auth/logout returns 401 without a valid access token', async () => {
+    await request(app.getHttpServer()).post('/api/v1/auth/logout').expect(401);
+  });
+
   it('POST /api/v1/auth/refresh returns 401 Refresh token expired when token is expired', async () => {
     const jwtService = app.get(JwtService);
     const expiredRefreshToken = jwtService.sign(
