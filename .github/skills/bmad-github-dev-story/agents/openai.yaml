@@ -1,0 +1,4 @@
+interface:
+  display_name: "BMAD GitHub Dev Story"
+  short_description: "Implement BMAD stories from GitHub issues"
+  default_prompt: "Use $bmad-github-dev-story to implement the current GitHub story issue with BMAD context."
