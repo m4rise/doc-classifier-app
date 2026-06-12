@@ -1,222 +1,234 @@
-
 # Contributing Guide
 
-Welcome! This project uses **GitHub Flow** and strict automation for quality and traceability.
+Welcome. This repository uses GitHub Flow with strict traceability and
+automation.
 
-**For all workflow, naming, automation, and release conventions, see:**
-- [docs/WORKFLOW.md](docs/WORKFLOW.md) — _Reference for all agents, scripts, and contributors_
+`docs/WORKFLOW.md` is the source of truth for workflow, naming, automation,
+release, BMAD back-sync, and PR requirements. This guide is the daily practical
+version for contributors.
 
-**This CONTRIBUTING guide focuses on practical daily steps, PR etiquette, and collaboration tips.**
+## Start Here
 
+Before implementation, choose one track:
 
----
+- **Track A - BMAD GitHub-first story work:** use an existing GitHub story issue
+  created from BMAD work. GitHub is authoritative for AC, DoR, DoD, active
+  status, comments, branch guidance, and PR linkage. BMAD artifacts are context
+  only and back-sync happens after issue close.
+- **Track B - GitHub-only work:** use a regular GitHub issue for non-BMAD
+  features, bugs, docs, chores, tooling, refactors, or external contributions.
+  No BMAD artifact, specs repo access, or back-sync is required.
 
-## Quick Workflow Reference
+Every human-authored PR to `main` must have a primary GitHub issue and a closing
+keyword in the PR body: `Closes #N`, `Fixes #N`, or `Resolves #N`.
 
-See [docs/WORKFLOW.md](docs/WORKFLOW.md) for:
-- Branch naming rules
-- Commit message conventions
-- PR/label/DoR/DoD requirements
-- CI, release, and changelog automation
-- FAQ and best practices
+See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the detailed rules.
 
-### Which flow should I use?
+For agent-assisted work, copy one of the prompt recipes from
+[docs/WORKFLOW.md#13-agent-prompt-recipes](docs/WORKFLOW.md#13-agent-prompt-recipes).
 
-- **BMAD product scope (epic/story work):** use the BMAD track documented in [docs/WORKFLOW.md](docs/WORKFLOW.md) and the scripts reference in `doc-classifier-specs/scripts/README.md`.
-- **Non-BMAD operational scope (maintenance, tooling, external requests):** use issue templates (`feature_request` / `bug_report`), branch from issue number, then PR with `Closes #N`.
-- In both cases, quality gates are identical: Conventional Commits, PR template completion, and green CI.
+## Daily Workflow
 
----
+### 1. Create or Identify the Issue
 
----
+Use the right issue source:
 
+- Track A: use the existing BMAD story issue. Do not recreate it manually.
+- Track B feature/change: use `.github/ISSUE_TEMPLATE/feature_request.md`.
+- Track B bug/regression: use `.github/ISSUE_TEMPLATE/bug_report.md`.
 
-## Daily Workflow (Practical Steps)
+For Track B, make sure the issue has clear Acceptance Criteria / Definition of
+Done before implementation.
 
-### 1. Create a Feature Branch
+### 2. Create a Branch
+
+Start from `main` unless an exception is justified, such as adapting a Renovate
+branch.
 
 ```bash
 git checkout main
-git pull origin main
-git checkout -b feature/42-short-description
+git pull --rebase origin main
+git checkout -b feature/DC-123-short-description
 ```
 
+Branch patterns:
 
+- `feature/DC-<issue-number>-<short-desc>`
+- `fix/DC-<issue-number>-<short-desc>`
+- `docs/DC-<issue-number>-<short-desc>`
+- `chore/DC-<issue-number>-<short-desc>`
 
-**Branch naming convention:** See [docs/WORKFLOW.md](docs/WORKFLOW.md) for full rules. Always include the issue number if possible.
+For BMAD story issues, prefer the `Suggested Branch` from the GitHub issue when
+present.
 
-> allowing the push. Labels are auto-applied by the labeler bot, but you can
-> also set them manually in the GitHub UI.
+### 3. Commit Clearly
 
-
-> The pre-push hook will check that your PR has at least one valid label before allowing the push. Labels are auto-applied by the labeler bot, but you can also set them manually in the GitHub UI. See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the list of allowed labels.
-
-### 2. Commit Often, Write Clear Messages
+Use Conventional Commits with scopes allowed by `commitlint.config.cjs`.
 
 ```bash
 git add .
-git commit -m "feat(auth): implement login use-case"
+git commit -m "feat(auth): implement login use case"
 ```
 
+Do not put `Closes #N`, `Fixes #N`, or `Resolves #N` in commits. Closing
+keywords belong in the PR body.
 
-**Commit message format:** See [docs/WORKFLOW.md](docs/WORKFLOW.md) for full Conventional Commits rules and examples.
+### 4. Run Local Checks
 
-### 3. Push to Remote
+Recommended before PR readiness:
 
 ```bash
-git push -u origin feature/42-short-description
+npm run check
 ```
 
-### 4. Create a Pull Request
-
-Go to [GitHub Repo](https://github.com/m4rise/doc-classifier-app) → **Pull Requests** → **New PR**
-
-
-**PR Title:** Same format as commit message (see [docs/WORKFLOW.md](docs/WORKFLOW.md)).
-
-
-
-**PR Description:**
-- Use the PR template (auto-filled by GitHub)
-- Reference issues/stories/epics as described in [docs/WORKFLOW.md](docs/WORKFLOW.md)
-
-### 5. Review & Approval
-
-- **Solo dev?** Review your own changes, then approve
-- **With a partner?** Wait for their review, address feedback
-
-Reviewers will:
-- Check code quality
-- Verify tests pass on CI
-- Leave comments for improvements
-
-### 6. Merge & Clean Up
-
-Once approved and CI is green ✅:
-
-1. **GitHub UI** → Click "Squash and merge"
-   - This combines all commits into a single clean commit
-   - Keeps `main` history readable
-
-2. **Delete feature branch** (GitHub UI offers this auto-cleanup option)
-   - Keeps repo clean
-
-3. **Local cleanup:**
-   ```bash
-   git checkout main
-   git pull origin main
-   git branch -d feature/42-short-description
-   ```
-
----
-
-## Working in Parallel (Multiple Developers)
-
-### Scenario: You + Partner Both Working
-
-```
-You work on:         Partner works on:
-feature/auth-login   feature/document-upload
-       ↓                    ↓
-      PR (you review)      PR (partner reviews)
-       ↓                    ↓
-    MERGE ←────→ MERGE
-       ↓                    ↓
-       └──── main ────┘
-          (clean history)
-```
-
-**Key:** No interaction between branches until `main`. Zero merge conflicts.
-
-### Pulling Latest Changes
+This runs lint, unit tests, and build. Add targeted checks when relevant, for
+example:
 
 ```bash
-# You just merged partner's PR
+npm run test:e2e
+```
+
+### 5. Push and Open a PR
+
+```bash
+git push -u origin feature/DC-123-short-description
+```
+
+Open the PR on GitHub and fill `.github/PULL_REQUEST_TEMPLATE.md`.
+
+Required PR points:
+
+- Use a Conventional Commit style PR title.
+- Fill `Related Work`.
+- Include `Closing Issue (required): Closes #<primary-issue>`.
+- List AC/tasks actually addressed.
+- Complete DoR/DoD checklists honestly.
+- Add at least one valid repository label.
+- Add reviewers when appropriate.
+
+For GitHub-only work, fill BMAD-only PR fields with `N/A - GitHub-only work`.
+
+### 6. Review, Fix, Merge
+
+Before merge:
+
+- PR has at least one valid label.
+- PR body contains the closing keyword for the primary issue.
+- CI is green.
+- Review feedback is addressed.
+- Squash commit title follows Conventional Commits.
+
+Use **Squash and merge** only.
+
+After merge:
+
+```bash
 git checkout main
-git pull origin main  # ← Gets their squash-merged commit
-
-# Start your next feature with latest code
-git checkout -b feature/next-thing
+git pull --rebase origin main
+git branch -d feature/DC-123-short-description
 ```
 
----
+## Hooks and Automation
 
-## CI/CD Pipeline
+Husky hooks:
 
-Every PR runs GitHub Actions:
+- `.husky/pre-commit` runs `npx lint-staged`.
+- `.husky/commit-msg` runs commitlint.
+- `.husky/pre-push` runs `.husky/check-pr-labels.js`.
 
-```
-PR Created
-    ↓
-CI Triggered (5 jobs run in parallel)
-    ├─ lint        — ESLint (backend + frontend)
-    ├─ test-unit   — Jest + Vitest with coverage → Codecov
-    ├─ test-integration — Jest e2e (PostgreSQL via service container)
-    ├─ security    — Trivy image scan (CRITICAL/HIGH)
-    └─ release     — semantic-release (main branch only)
-    ↓
-If all ✅ → PR shows "All checks passed"
-If any ❌ → PR blocked until fixed
-    ↓
-Can only merge if:
-  ✓ PR approved
-  ✓ CI green
-  ✓ Branch up-to-date with main
-  ✓ PR has a valid label (checked by pre-push hook)
-```
+The pre-push label check skips validation when no PR exists yet. Once a PR
+exists for the current branch, it blocks pushes if the PR has no label or an
+unauthorized label.
 
----
+PR traceability is enforced by `.github/workflows/pr-traceability-guard.yml`.
+`Related to #N` is useful for secondary context, but it does not satisfy the
+primary closing keyword requirement.
 
+## CI/CD Summary
 
-## Branch Protection Rules
+Pull requests to `main` run `.github/workflows/ci.yml`:
 
-See [docs/WORKFLOW.md](docs/WORKFLOW.md) for up-to-date branch protection and automation requirements.
+- `lint`
+- `test-unit`
+- `test-integration`
+- `test-e2e`
+- `security`
 
----
+The `release` job runs only after a push to `main` and after required CI jobs
+pass. Deployment is handled by `.github/workflows/deploy.yml` after successful
+CI on `main`.
 
-## Common Commands Reference
+## Renovate Breaking Changes
+
+Renovate bot PRs from `renovate/*` branches are exempt from the closing keyword
+guard. Human adaptation PRs are not exempt.
+
+If a Renovate PR introduces a breaking change:
+
+1. Leave the failing Renovate PR open.
+2. Create a dedicated GitHub issue for the adaptation.
+3. Branch from the Renovate branch with an issue-numbered branch, for example
+   `chore/DC-123-renovate-major-backend-dependencies`.
+4. Open a human PR to `main` with `Closes #123`.
+5. Close the original Renovate PR after the adaptation PR merges if it is
+   obsolete.
+
+## Working in Parallel
+
+Keep changes isolated by issue and branch. Multiple contributors can work in
+parallel as long as every branch starts from a reasonable base and each PR stays
+focused.
+
+When another PR merges before yours:
 
 ```bash
-# Start a feature (always link to an issue number)
-git checkout -b feature/42-short-description
-git push -u origin feature/42-short-description
+git fetch origin
+git rebase origin/main
+```
 
-# Keep your feature branch updated (while working)
+Resolve conflicts locally, rerun relevant checks, and push again.
+
+## Common Commands
+
+```bash
+# Start from main
+git checkout main
+git pull --rebase origin main
+
+# Create a branch for issue #123
+git checkout -b feature/DC-123-short-description
+
+# Commit
+git add .
+git commit -m "feat(documents): add export filter"
+
+# Local checks
+npm run check
+
+# Push
+git push -u origin feature/DC-123-short-description
+
+# Keep branch updated
 git fetch origin
 git rebase origin/main
 
-# Before creating PR, check everything locally
-npm run check  # lint + test + build
-
-# After PR is merged
+# Cleanup after merge
 git checkout main
-git pull origin main
-git branch -d feature/42-short-description
-
-# View recent branches
-git branch -v
-
-# Fetch all branches
-git fetch origin
+git pull --rebase origin main
+git branch -d feature/DC-123-short-description
 ```
-
----
-
-
-## FAQ
-
-See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the full FAQ and best practices.
-
----
 
 ## Useful Links
 
-- [GitHub Flow Guide](https://guides.github.com/introduction/flow/)
+- [docs/WORKFLOW.md](docs/WORKFLOW.md)
+- [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
+- [.github/ISSUE_TEMPLATE/story.md](.github/ISSUE_TEMPLATE/story.md)
+- [.github/ISSUE_TEMPLATE/feature_request.md](.github/ISSUE_TEMPLATE/feature_request.md)
+- [.github/ISSUE_TEMPLATE/bug_report.md](.github/ISSUE_TEMPLATE/bug_report.md)
 - [Conventional Commits](https://www.conventionalcommits.org/)
-- [Repo Branch Protection Settings](https://github.com/m4rise/doc-classifier-app/settings/branches)
-
----
+- [Repository branch protection settings](https://github.com/m4rise/doc-classifier-app/settings/branches)
 
 ## Need Help?
 
-Post an issue or comment on a PR. Clear communication > perfect code.
+Open an issue or comment on the relevant PR. Clear communication beats hidden
+assumptions.

@@ -1,178 +1,595 @@
-## Handling Breaking Changes from Automated Dependency Updates (Renovate)
-
-When a Renovate PR introduces a breaking change that requires code adaptation, follow this process to ensure traceability and CI stability:
-
-1. **Do not merge the failing Renovate PR.**
-   - If the PR fails CI due to a breaking change, leave it open.
-
-2. **Create a dedicated issue (mandatory)** describing the required code adaptation (e.g., "Adapt the code to the breaking change in X").
-   - ⚠️ This step is mandatory: without an issue, the adaptation PR cannot be merged due to the “closes #XX” check enforced by CI.
-
-3. **Create a new branch from the Renovate branch** (e.g., `fix/renovate-<dependency>-breaking-change`).
-   - Example:
-     ```bash
-     git checkout renovate/major-backend-dependencies
-     git checkout -b fix/renovate-major-backend-dependencies
-     ```
-
-4. **Implement the necessary code changes** on this branch so that CI passes.
-
-5. **Open a new PR** from your branch to `main`, referencing the dedicated issue with a closing keyword (e.g., `Closes #123`).
-   - This PR will include both the dependency update and the required code adaptation.
-   - ⚠️ Without “Closes #XX” pointing to the issue, CI will block the merge.
-
-6. **Merge your PR** once CI is green and review is complete.
-
-7. **Close the original Renovate PR** (it is now obsolete, as its changes are included in your merged PR).
-
-**Why this process?**
-
-- Maintains a clean, traceable history (issue → PR → merge).
-- Ensures CI is always green on `main`.
-- Separates automated updates from manual adaptations for better review and auditability.
-
-This process is mandatory for all breaking changes introduced by automated dependency update tools if you want to keep CI and traceability rules enforced.
-
 # GitHub Flow & Release Workflow
 
-This document describes the complete workflow for contributing to this repository, ensuring compliance with all automation, naming, and quality conventions (labels, commit lint, changelog, release, etc.).
+This document is the operational workflow reference for contributors and agents
+working on the GitHub repository `doc-classifier-app`. It defines how GitHub
+issues, branches, commits, pull requests, CI, release automation, and BMAD
+back-sync fit together.
 
-## 0. Choose the Right Track
+## 0. Non-Negotiable Principles
 
-Use one of these two contribution tracks:
+- GitHub is the operational source of truth for active implementation work.
+- Every human-authored PR intended for `main` must have a primary GitHub issue
+  and a PR body closing it with `Closes #N`, `Fixes #N`, or `Resolves #N`.
+- BMAD artifacts provide product context, planning history, architecture
+  background, and traceability. They must not override the GitHub issue contract
+  during implementation.
+- Back-sync is a BMAD-only hygiene mechanism after a GitHub story issue closes.
+  It is not part of GitHub-only work.
+- All GitHub-facing content should be written in English: issue bodies, branch
+  slugs, commit messages, PR body, labels, and review notes.
+- All human-authored contributions must satisfy the same quality gates: valid
+  issue, dedicated branch, Conventional Commits, completed PR template, valid
+  labels, passing local checks where relevant, and green CI before merge.
 
-- **Track A — BMAD-driven product scope (epics/stories):**
-  - Source of truth lives in `doc-classifier-specs/_bmad-output/doc-classifier/`.
-  - Sync to GitHub with `import_epics_stories.py`.
-  - Back-sync on issue close with `sync_status.py` through `.github/workflows/back-sync-specs.yml`.
-  - Full commands and scenarios are documented in `doc-classifier-specs/scripts/README.md`.
+## 1. Choose the Right Track
 
-- **Track B — Non-BMAD operational work (maintenance, tooling, external user requests):**
-  - Create a regular GitHub issue from `.github/ISSUE_TEMPLATE/feature_request.md` or `.github/ISSUE_TEMPLATE/bug_report.md`.
-  - Create a dedicated branch named with the issue number.
-  - Open a PR using the PR template and include a closing keyword (`Closes #N`, `Fixes #N`, `Resolves #N`).
-  - CI enforces the closing keyword via `.github/workflows/pr-traceability-guard.yml`.
+Use exactly one track before starting implementation.
 
-Both tracks must satisfy the same quality gates: Conventional Commits, PR template completion, CI green, and traceability from issue to PR.
+### Track A - BMAD GitHub-First Story Work
 
----
+Use this track for product stories imported from BMAD epics/stories.
 
-## 1. Branching
+Operational source of truth:
 
-- **Always create a dedicated branch** for each feature, bugfix, refactor, or improvement.
-- **Branch naming** — include the issue number for full BMAD traceability:
-  - `feature/DC-{issue-number}-<short-desc>` (feature / story)
-  - `fix/DC-{issue-number}-<short-desc>` (bugfix)
-  - `chore/<short-desc>` (tooling, config — no issue required)
-  - `docs/<short-desc>` (documentation — no issue required)
-  - Examples:
-    - `feature/DC-42-nestjs-backend-bootstrap`
-    - `fix/DC-67-auth-token-expiry`
-  - The issue number is suggested in the GitHub story issue body under **Suggested Branch**.
+- The GitHub story issue is authoritative for Acceptance Criteria (AC),
+  Definition of Ready (DoR), Definition of Done (DoD), active status, comments,
+  branch guidance, and PR linkage.
+- BMAD files are supporting context only. If BMAD files disagree with the
+  GitHub issue, continue from GitHub and record the mismatch as a sync or
+  documentation follow-up.
+- If AC, DoR, or DoD are missing or ambiguous in GitHub, clarify the GitHub
+  issue before implementation. Do not silently replace missing GitHub contract
+  details with local BMAD content.
 
-## 2. Conventional Commits
+Repository and local path convention:
 
-- **All commits must follow [Conventional Commits](https://www.conventionalcommits.org/):**
-  - `type(scope): short summary`
-  - Types: `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, etc.
-  - Scope: matches a domain, module, or label (e.g. `frontend`, `ci-cd`, `docs`)
-  - Example: `feat(frontend): improve accessibility score`
-- **Commit messages are linted** (pre-commit hook).
+- `doc-classifier-app` is the GitHub repository name for the application.
+- `doc-classifier-specs` is the GitHub repository name for the BMAD/specs
+  repository used by back-sync automation.
+- By default, local clones should use the same directory names as their GitHub
+  repositories and live as siblings, for example:
 
-## 3. Pull Requests (PR)
+  ```text
+  <workspace>/
+    doc-classifier-app/
+    doc-classifier-specs/
+  ```
 
-- **Open a PR for every branch** (no direct pushes to `main`).
-- **Fill out the PR template:**
-  - Reference at least one User Story, Epic, or Issue (if possible).
-  - Add at least one label (required by pre-push hook).
-  - Complete DoR/DoD checklists.
-  - List Acceptance Criteria and Implementation Tasks addressed.
-- **Label your PR:**
-  - Use only labels defined in the repository (enforced by pre-push hook).
-- **Link issues/stories/epics:**
-  - Use `Closes #XX` or `Related to #YY` in the PR description for traceability.
-  - PRs without a closing keyword for the primary issue are blocked by `.github/workflows/pr-traceability-guard.yml`.
+- The exact local workspace path and operating-system user are intentionally
+  irrelevant. `C:\Users\<user>\dev\...`, `/home/<user>/dev/...`, or another
+  root are all valid.
+- Small local naming differences are acceptable when a contributor knows their
+  layout. They should not affect GitHub Actions, because CI checks out
+  repositories explicitly. For local scripts and agent work, adjust only the
+  sibling path prefix when the clone directory names differ.
 
-## 4. Local Checks Before Push
+Relevant app repo files, relative to the `doc-classifier-app/` repository root:
 
-- **Run all tests, lint, and build locally:**
-  - `npm run test`, `npm run lint`, `npm run build`
-- **Pre-push hooks enforce:**
-  - Commit message format
-  - PR label compliance
-  - (Optionally) other custom checks
+- `.github/ISSUE_TEMPLATE/story.md`
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/workflows/back-sync-specs.yml`
+- `.github/skills/bmad-github-dev-story/SKILL.md`
+- `.github/skills/monorepo-github-flow/SKILL.md`
 
-## 5. CI/CD Pipeline
+Relevant BMAD/specs paths, written from the `doc-classifier-app/` repository
+root when `doc-classifier-specs` is checked out as a sibling directory:
 
-- **CI runs on every PR:**
-  - Lint, test, build, security checks, coverage, etc.
-  - PR must be green before merge.
+- Local BMAD/specs repository clone, when available from the default sibling
+  layout:
+  `../doc-classifier-specs`
+- BMAD source artifacts:
+  `../doc-classifier-specs/_bmad-output/doc-classifier/`
+- Story files:
+  `../doc-classifier-specs/_bmad-output/doc-classifier/implementation-artifacts/`
+- Sprint status:
+  `../doc-classifier-specs/_bmad-output/doc-classifier/DC-sprint-status.yaml`
+- BMAD scripts:
+  `../doc-classifier-specs/scripts/import_epics_stories.py`
+  `../doc-classifier-specs/scripts/sync_status.py`
+- BMAD script documentation:
+  `../doc-classifier-specs/scripts/README.md`
 
-## 5.1 App -> Specs Back-Sync
+In GitHub Actions, the back-sync workflow does not use the sibling local path.
+It checks out `m4rise/doc-classifier-specs` into `specs/`, then runs:
 
-- On issue close, `.github/workflows/back-sync-specs.yml` syncs status back to `doc-classifier-specs`.
-- The workflow runs `scripts/sync_status.py` in the specs repo and commits the resulting status/frontmatter updates.
-- This keeps BMAD artifacts aligned even when implementation work started from a GitHub issue.
+```bash
+python scripts/sync_status.py \
+  --issue-number "<issue-number>" \
+  --issue-title  "<issue-title>" \
+  --project-key  DC \
+  --project-dir  doc-classifier
+```
 
-## 6. Merge Strategy
+### Track B - GitHub-Only Work
 
-- **Squash & merge** only (no merge commits, no rebase merges).
-- **Squash commit message** should follow Conventional Commits (for changelog/release automation).
+Use this track for non-BMAD work: small features, external contributions,
+maintenance, tooling, CI/CD, documentation, refactors, and reproducible bugs.
 
-## 7. Release & Changelog Automation
+Operational source of truth:
 
-- **semantic-release** (or similar) runs on `main` after merge:
-  - Analyzes commit messages to determine version bump.
-  - Generates/updates `CHANGELOG.md`.
-  - Creates a GitHub release and tag.
-  - (Optionally) triggers deployment.
+- The GitHub issue and PR are the complete operational record.
+- Do not require BMAD artifacts.
+- Do not inspect the specs/BMAD repo unless the user explicitly provides a real
+  BMAD trace.
+- Do not create fake BMAD fields.
+- Do not expect or trigger BMAD back-sync.
 
-## 8. Best Practices
+Issue template choice:
 
-- **Never push directly to `main`.**
-- **Batch small fixes** in a single PR if needed, but always use the template and label.
-- **Keep PRs focused**: one logical change per PR.
-- **Update documentation** if your change affects usage, APIs, or architecture.
+- Use `.github/ISSUE_TEMPLATE/feature_request.md` by default for non-BMAD
+  features, improvements, refactors, tooling, documentation, and small
+  improvised changes.
+- Use `.github/ISSUE_TEMPLATE/bug_report.md` only for reproducible bugs or
+  regressions.
+- Do not use `.github/ISSUE_TEMPLATE/story.md` for Track B. It contains BMAD
+  story fields such as `Project Key`, `Story ID`, `Epic`, `BMAD Source`, and
+  `Suggested Branch`.
 
----
+For Track B feature/change issues, fill:
 
-## Quick Reference Table
+- `Summary`
+- `Type of Request`
+- `Context & Motivation`
+- `Proposed Solution`
+- `Scope / Impacted Areas`
+- `Traceability` with `N/A - GitHub-only work` for BMAD traceability
+- `Acceptance Criteria / Definition of Done`
+- `Breaking change?`
+- `Risks / Points to watch` when relevant
+- `Additional Context` when relevant
 
-| Step        | Required? | Tool/Check          | Convention/Rule               |
-| ----------- | --------- | ------------------- | ----------------------------- |
-| Branch      | Always    | Naming, PR required | `feat/`, `fix/`, `chore/`...  |
-| Commit      | Always    | Commitlint          | Conventional Commits          |
-| PR          | Always    | PR Template, Labels | Label from repo, traceability |
-| Local Check | Always    | Test/Lint/Build     | All green before push         |
-| CI          | Always    | GitHub Actions      | All green before merge        |
-| Merge       | Always    | Squash & Merge      | Conventional commit message   |
-| Release     | Auto      | semantic-release    | Changelog, version, release   |
+For Track B bug issues, fill:
 
----
+- `Summary`
+- `Affected Area`
+- `Steps to Reproduce`
+- `Expected Behavior`
+- `Actual Behavior`
+- `Severity`
+- `Security / RGPD Impact`
+- logs and environment details when available
 
-## Example Flow
+If expected behavior or AC/DoD are not precise enough to verify the fix, clarify
+the issue before implementation.
 
-1. `git checkout -b feat/frontend-accessibility-audit`
-2. Make changes, commit with `feat(frontend): ...` messages
-3. Push branch, open PR, fill template, add label(s), link issue/story
-4. Ensure all checks pass (local + CI)
-5. Squash & merge PR to `main`
-6. Release & changelog auto-generated
+## 2. Issues and Traceability
 
----
+- A primary GitHub issue is required for every human-authored mergeable PR to
+  `main`.
+- The PR description must contain a closing keyword for the primary issue:
+  `Closes #N`, `Fixes #N`, or `Resolves #N`.
+- `Related to #N` is allowed only for secondary context. It does not satisfy the
+  primary issue closing requirement.
+- Do not put closing keywords in commits. Put them in the PR body.
+- The guard `.github/workflows/pr-traceability-guard.yml` blocks PRs to `main`
+  without a closing keyword.
+- Renovate bot PRs from `renovate/*` branches are the only automatic exception
+  currently encoded in the traceability guard.
 
-## FAQ
+## 3. Branching
 
-- **Q: Can I make a micro-fix without an issue?**
-  - A: Yes, but always open a branch and PR, and explain in the PR template why there is no linked issue.
-- **Q: Can I use a custom label?**
-  - A: No, only labels defined in the repository are allowed (enforced by the Husky pre-push hook).
-- **Q: Do I always have to fill out DoR/DoD?**
-  - A: Yes, even for chores or docs. Adapt the criteria as needed, but always check them.
+- Always create a dedicated branch for each feature, bugfix, refactor, chore,
+  documentation change, or maintenance task.
+- Start from an up-to-date `main` unless a specific exception is justified, such
+  as adapting a Renovate branch.
+- Include the primary issue number in human-authored branch names.
 
----
+Branch patterns:
 
-## Reference & Further Reading
+- `feature/DC-<issue-number>-<short-desc>` for features and story work.
+- `fix/DC-<issue-number>-<short-desc>` for bug fixes and regressions.
+- `docs/DC-<issue-number>-<short-desc>` for documentation changes.
+- `chore/DC-<issue-number>-<short-desc>` for tooling, dependencies, config, or
+  maintenance.
 
-- This workflow is the reference for all agents, scripts, and contributors.
-- See also: [CONTRIBUTING.md](../CONTRIBUTING.md) for detailed daily workflow, commit/PR examples, and branch protection rules. Both documents are complementary and must be followed for all contributions and automation.
+Examples:
+
+- `feature/DC-42-nestjs-backend-bootstrap`
+- `fix/DC-67-auth-token-expiry`
+- `docs/DC-123-update-workflow`
+- `chore/DC-124-renovate-breaking-change`
+
+For BMAD story issues, prefer the `Suggested Branch` from the GitHub issue when
+present. If it is absent, derive the branch from the primary issue number.
+
+## 4. Conventional Commits
+
+All commits and squash merge titles must follow Conventional Commits:
+
+```text
+type(scope): short summary
+```
+
+Examples:
+
+- `feat(frontend): improve accessibility score`
+- `fix(auth): handle expired refresh tokens`
+- `chore(deps): adapt backend dependency breaking change`
+- `docs(docs): update workflow reference`
+
+Commitlint is enforced by `.husky/commit-msg`.
+
+Use scopes allowed by `commitlint.config.cjs`:
+
+- `auth`
+- `users`
+- `documents`
+- `ai-pipeline`
+- `search`
+- `admin`
+- `mcp`
+- `rgpd`
+- `domain`
+- `application`
+- `shared`
+- `health`
+- `observability`
+- `frontend`
+- `backend`
+- `root`
+- `ci-cd`
+- `infra`
+- `db`
+- `docker`
+- `dependencies`
+- `release`
+- `workspace`
+- `deps`
+- `types`
+- `docs`
+- `tests`
+
+## 5. Pull Requests
+
+- Open a PR for every branch. Never push directly to `main`.
+- Use `.github/PULL_REQUEST_TEMPLATE.md`.
+- Fill every relevant section. Do not leave placeholders that apply to the
+  change.
+- Add at least one valid repository label.
+- List the AC/tasks actually addressed.
+- Complete DoR/DoD checklists honestly. Mark non-applicable items only when the
+  PR body explains why they do not apply.
+- Add reviewers when appropriate.
+- Ensure the PR body contains a closing keyword for the primary issue.
+
+### Related Work for Track A
+
+For BMAD GitHub-first story work, keep the PR template field names and fill:
+
+- `Branch`: current branch.
+- `User Story`: `#<issue> - [N.M] <story title>`.
+- `Epic`: linked epic issue if present in the story issue.
+- `BMAD Story File`: the `BMAD Source` path from the GitHub issue, for example
+  `_bmad-output/doc-classifier/implementation-artifacts/DC-N-M-<slug>.md`.
+- `Closing Issue (required)`: `Closes #<primary-issue>`.
+- `Related Issue(s) (optional)`: real related issues only.
+
+### Related Work for Track B
+
+For GitHub-only work, keep the PR template field names and fill:
+
+- `Branch`: current branch.
+- `User Story`: `#<primary-issue> - GitHub-only issue - <title>`.
+- `Epic`: `N/A - GitHub-only work`, unless a real GitHub epic exists.
+- `BMAD Story File`: `N/A - GitHub-only work`, unless a real BMAD trace was
+  explicitly provided.
+- `Closing Issue (required)`: `Closes #<primary-issue>`.
+- `Related Issue(s) (optional)`: real related issues only.
+
+## 6. Local Checks and Hooks
+
+Recommended local checks before push or PR readiness:
+
+```bash
+npm run check
+```
+
+This runs:
+
+- `npm run lint`
+- `npm run test`
+- `npm run build`
+
+Additional targeted checks:
+
+- `npm run test:e2e`
+- backend or frontend package-level tests when the change is localized.
+
+Husky hooks:
+
+- `.husky/pre-commit` runs `npx lint-staged`.
+- `.husky/commit-msg` runs commitlint.
+- `.husky/pre-push` runs `.husky/check-pr-labels.js`.
+
+The pre-push label check:
+
+- fetches allowed labels from GitHub with `gh label list`;
+- finds a PR for the current branch with `gh pr list --head`;
+- skips label validation when no PR exists yet;
+- blocks the push when an existing PR has no labels or unauthorized labels.
+
+## 7. CI/CD Pipeline
+
+### Pull Request CI
+
+`.github/workflows/ci.yml` runs on PRs to `main` and on pushes to `main`.
+
+Current PR CI jobs:
+
+- `lint`: backend lint and frontend lint.
+- `test-unit`: backend and frontend unit tests with coverage upload.
+- `test-integration`: backend integration tests with PostgreSQL service.
+- `test-e2e`: backend e2e tests with PostgreSQL service.
+- `security`: backend/frontend `npm audit --audit-level=critical`, backend
+  Docker image build for scanning, and Trivy scan.
+
+The CI workflow does not currently run the root `npm run build` as a standalone
+PR job. The build remains required locally through `npm run check` and in the PR
+template testing checklist. The deploy workflow builds the frontend during
+deployment, and the security job builds the backend Docker image for scanning.
+
+### Release
+
+The `release` job in `.github/workflows/ci.yml` runs only when:
+
+- the event is a push to `main`;
+- `lint`, `test-unit`, `test-integration`, `test-e2e`, and `security` have
+  passed.
+
+It installs root dependencies and runs `npx semantic-release`, using
+`RELEASE_TOKEN` to publish release artifacts, changelog/version updates, tags,
+and GitHub release notes according to semantic-release configuration.
+
+### Deploy
+
+`.github/workflows/deploy.yml` runs after the `CI` workflow completes
+successfully on `main`, or manually through `workflow_dispatch`.
+
+It deploys:
+
+- backend to Cloud Run after dependency install, Prisma generate, migrations,
+  Docker build/push, and Cloud Run deploy;
+- frontend to Firebase Hosting after dependency install and `npm run build`.
+
+## 8. BMAD Back-Sync
+
+Back-sync is Track A only.
+
+`.github/workflows/back-sync-specs.yml` runs on closed issues, but proceeds only
+when the issue title matches the BMAD story pattern:
+
+```text
+[N.M] Story title
+```
+
+When the title matches, the workflow:
+
+- checks out `m4rise/doc-classifier-specs` into `specs/`;
+- installs Python dependencies;
+- runs `scripts/sync_status.py` from the checked-out specs repo;
+- passes `--project-key DC` and `--project-dir doc-classifier`;
+- commits and pushes status/frontmatter updates when the sync changes files.
+
+Back-sync must not be used for Track B GitHub-only issues. Track B ends with the
+GitHub issue, PR, merge, and release/deploy record.
+
+## 9. Renovate and Breaking Dependency Changes
+
+Renovate bot PRs from `renovate/*` branches are exempted from the closing
+keyword guard. Human-authored adaptation PRs are not exempt.
+
+When a Renovate PR introduces a breaking change that requires code adaptation:
+
+1. Do not merge the failing Renovate PR.
+2. Create a dedicated GitHub issue describing the required adaptation.
+3. Create a human adaptation branch from the Renovate branch.
+4. Use an issue-numbered branch name when possible, for example
+   `chore/DC-123-renovate-major-backend-dependencies`.
+5. Implement the necessary code changes so CI passes.
+6. Open a PR to `main` with `Closes #<adaptation-issue>`.
+7. After the adaptation PR merges, close the original Renovate PR if it is
+   obsolete.
+
+Example:
+
+```bash
+git checkout renovate/major-backend-dependencies
+git checkout -b chore/DC-123-renovate-major-backend-dependencies
+```
+
+This keeps the traceability chain clean:
+
+```text
+issue -> branch -> commits -> PR -> merge
+```
+
+## 10. Merge Strategy
+
+- Use Squash and merge only.
+- Do not use merge commits or rebase merges.
+- The squash commit title must follow Conventional Commits.
+- Confirm the PR has a closing keyword for the primary issue before merge.
+- Confirm CI is green before merge.
+
+## 11. Quick Reference
+
+| Step | Required | Reference |
+| --- | --- | --- |
+| Track selection | Always | Track A BMAD GitHub-first or Track B GitHub-only |
+| Issue | Always for human PRs | `story.md`, `feature_request.md`, or `bug_report.md` |
+| Branch | Always | `feature/DC-N-*`, `fix/DC-N-*`, `docs/DC-N-*`, `chore/DC-N-*` |
+| Commit | Always | Conventional Commits + `commitlint.config.cjs` |
+| PR | Always | `.github/PULL_REQUEST_TEMPLATE.md` |
+| Closing keyword | Always for human PRs | `Closes #N`, `Fixes #N`, or `Resolves #N` |
+| Labels | Required once PR exists | `.husky/check-pr-labels.js` |
+| Local check | Recommended before readiness | `npm run check` |
+| PR CI | Required before merge | `.github/workflows/ci.yml` |
+| Back-sync | Track A only | `.github/workflows/back-sync-specs.yml` |
+| Release | Automatic on `main` | semantic-release in `.github/workflows/ci.yml` |
+| Deploy | Automatic after successful CI on `main` | `.github/workflows/deploy.yml` |
+
+## 12. Example Flows
+
+### Track A - Existing BMAD Story Issue
+
+1. Open the GitHub story issue, for example `#42`.
+2. Verify AC, DoR, DoD, `BMAD Source`, and `Suggested Branch`.
+3. If AC/DoD are missing in GitHub, clarify the issue before implementation.
+4. Create or checkout the suggested branch, for example:
+
+   ```bash
+   git checkout main
+   git pull --rebase origin main
+   git checkout -b feature/DC-42-nestjs-backend-bootstrap
+   ```
+
+5. Implement only the issue scope.
+6. Commit with Conventional Commits.
+7. Run relevant checks.
+8. Open a PR using the template and `Closes #42`.
+9. Merge only after review and green CI.
+10. Let BMAD back-sync run after the issue closes.
+
+### Track B - GitHub-Only Feature
+
+1. Create an issue from `.github/ISSUE_TEMPLATE/feature_request.md`.
+2. Fill AC/DoD clearly enough to review.
+3. Create a branch with the issue number:
+
+   ```bash
+   git checkout main
+   git pull --rebase origin main
+   git checkout -b feature/DC-123-add-export-filter
+   ```
+
+4. Implement the change.
+5. Commit, for example:
+
+   ```bash
+   git commit -m "feat(documents): add export filter"
+   ```
+
+6. Run `npm run check` or targeted checks.
+7. Open a PR with:
+   - `User Story: #123 - GitHub-only issue - Add export filter`
+   - `Epic: N/A - GitHub-only work`
+   - `BMAD Story File: N/A - GitHub-only work`
+   - `Closing Issue (required): Closes #123`
+8. Merge only after review and green CI.
+
+## 13. Agent Prompt Recipes
+
+Use these prompts when asking an agent to apply the repository workflow. In
+PowerShell, wrap prompts in single quotes so skill names such as
+`$monorepo-github-flow` are not interpreted as shell variables.
+
+### Track B - Diff-First Dry Run
+
+Use this when local changes already exist and the agent must reconstruct the
+GitHub-only issue and PR from the diff. This is the safest first pass because it
+does not create GitHub resources.
+
+```text
+Use $monorepo-github-flow in Mode B diff-first.
+
+Inspect the current local diff and reconstruct the smallest coherent GitHub-only change from it.
+Do not use BMAD artifacts, do not inspect the specs repo, and do not mention back-sync.
+
+Draft the feature_request issue body and the PR body from the diff, using the repository templates and English GitHub-facing content.
+Do not run gh issue create or gh pr create yet.
+Stop after showing me:
+1. inferred issue title,
+2. selected labels if knowable,
+3. issue body,
+4. proposed branch name placeholder,
+5. PR title,
+6. PR body,
+7. proposed commands to run after confirmation.
+```
+
+PowerShell command form:
+
+```powershell
+codex 'Use $monorepo-github-flow in Mode B diff-first. Inspect the current local diff and reconstruct the smallest coherent GitHub-only change from it. Do not use BMAD artifacts, do not inspect the specs repo, and do not mention back-sync. Draft the feature_request issue body and the PR body from the diff, using the repository templates and English GitHub-facing content. Do not run gh issue create or gh pr create yet. Stop after showing me the inferred issue title, selected labels if knowable, issue body, proposed branch name placeholder, PR title, PR body, and proposed commands to run after confirmation.'
+```
+
+### Track B - Diff-First Execution After Approval
+
+Use this only after reviewing and approving the dry-run issue and PR drafts.
+
+```text
+Use $monorepo-github-flow in Mode B diff-first.
+
+Use the approved issue and PR drafts from this conversation.
+Create the GitHub-only feature_request issue with gh.
+Then create an issue-numbered branch from the current worktree, without committing on main.
+Commit the current local changes with a valid Conventional Commit message.
+Prepare or create the PR using .github/PULL_REQUEST_TEMPLATE.md, with N/A - GitHub-only work in BMAD-only fields and Closes #<created-issue>.
+Do not use BMAD artifacts, do not inspect the specs repo, and do not mention back-sync.
+```
+
+### Track B - Existing GitHub Issue
+
+Use this when a non-BMAD issue already exists.
+
+```text
+Use $monorepo-github-flow in Mode B.
+
+Implement existing GitHub-only issue #<issue-number>.
+Do not use BMAD artifacts, do not inspect the specs repo, and do not mention back-sync.
+Create or switch to the issue-numbered branch, implement only the issue scope, run relevant checks, and prepare a PR using .github/PULL_REQUEST_TEMPLATE.md with Closes #<issue-number>.
+```
+
+### Track A - Existing BMAD Story Issue
+
+Use this for BMAD story issues imported into GitHub.
+
+```text
+Use $bmad-github-dev-story and $monorepo-github-flow to implement GitHub issue #<issue-number>.
+
+Treat GitHub as the operational source of truth for AC, DoR, DoD, status, comments, and PR linkage.
+Use BMAD only as context if the issue links a BMAD Source.
+Create or use the suggested branch, implement only the issue scope, run relevant checks, and prepare a PR with Closes #<issue-number>.
+```
+
+## 14. FAQ
+
+### Can I make a micro-fix without an issue?
+
+No for human-authored PRs intended for `main`. Create a small GitHub-only issue
+from `feature_request.md` or `bug_report.md`, then close it from the PR body.
+
+### Can I use `Related to #N` instead of `Closes #N`?
+
+No for the primary issue. `Related to #N` is only secondary context and does not
+satisfy `.github/workflows/pr-traceability-guard.yml`.
+
+### Do I always have to fill DoR/DoD?
+
+Yes, but adapt them to the change. For Track B docs/chore work, the DoD can be
+simple and practical, but it must still be explicit enough to review.
+
+### Should GitHub-only work mention BMAD?
+
+No, unless the user explicitly provides a real BMAD trace. Otherwise use
+`N/A - GitHub-only work` in BMAD-only PR fields.
+
+### Should BMAD story work update local BMAD files during implementation?
+
+Not by default. Implement from the GitHub issue. Let the back-sync workflow
+update BMAD status after the issue closes, unless the user explicitly asks for a
+manual BMAD documentation update.
+
+## 15. Reference & Further Reading
+
+- [CONTRIBUTING.md](../CONTRIBUTING.md)
+- [.github/PULL_REQUEST_TEMPLATE.md](../.github/PULL_REQUEST_TEMPLATE.md)
+- [.github/ISSUE_TEMPLATE/story.md](../.github/ISSUE_TEMPLATE/story.md)
+- [.github/ISSUE_TEMPLATE/feature_request.md](../.github/ISSUE_TEMPLATE/feature_request.md)
+- [.github/ISSUE_TEMPLATE/bug_report.md](../.github/ISSUE_TEMPLATE/bug_report.md)
+- [.github/workflows/pr-traceability-guard.yml](../.github/workflows/pr-traceability-guard.yml)
+- [.github/workflows/back-sync-specs.yml](../.github/workflows/back-sync-specs.yml)
+- [.github/workflows/ci.yml](../.github/workflows/ci.yml)
+- [.github/workflows/deploy.yml](../.github/workflows/deploy.yml)
+- [.github/skills/bmad-github-dev-story/SKILL.md](../.github/skills/bmad-github-dev-story/SKILL.md)
+- [.github/skills/monorepo-github-flow/SKILL.md](../.github/skills/monorepo-github-flow/SKILL.md)
