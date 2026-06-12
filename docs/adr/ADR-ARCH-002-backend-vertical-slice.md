@@ -55,7 +55,33 @@ Les ports ne sont pas créés automatiquement pour chaque classe. Ils sont ajout
 quand ils protègent une règle métier, rendent un use-case testable sans framework,
 ou isolent une décision technique susceptible d'évoluer.
 
+### Communication entre slices, ports et shared domain
+
+Les slices peuvent communiquer entre elles, mais pas en important directement les
+objets de domaine internes d'une autre slice (`auth/domain`, `documents/domain`,
+etc.).
+
+Quand une slice a besoin d'une capacité métier détenue par une autre slice, elle
+exprime ce besoin via un port applicatif local. Par exemple, si `users` doit
+demander à `auth` si un email peut devenir l'email principal d'un compte, `users`
+déclare un port comme `IdentityEmailPolicyPort`, puis un adapter côté `auth` ou
+infrastructure fournit l'implémentation.
+
+Quand plusieurs slices partagent une règle métier pure, stable et indépendante
+d'une slice précise, cette règle peut être extraite dans `shared/domain`. Par
+exemple, un value object `Email` commun peut vivre dans
+`shared/domain/value-objects/email.vo.ts` si la normalisation et la validation
+d'email deviennent une règle produit transversale.
+
+À l'inverse, une duplication locale limitée est acceptable quand la règle est
+simple, peu coûteuse, et pas encore un contrat transversal explicite. Cela évite
+de créer un couplage prématuré ou une abstraction artificielle.
+
 ## Consequences
+
+- Les imports directs depuis le `domain/` d'une autre slice sont évités ; les
+  dépendances inter-slices passent par des ports applicatifs ou par
+  `shared/domain` quand la règle est réellement transversale.
 
 - Maintenabilité forte : chaque slice est compréhensible indépendamment.
 - Testabilité : le domaine n'a aucune dépendance externe, mockable sans framework.
