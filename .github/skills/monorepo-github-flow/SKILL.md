@@ -92,6 +92,8 @@ If the target is GitHub-only work, do not add fake BMAD fields, do not invent a 
 - `Closing Issue (required)`: `Closes #<primary-issue>`;
 - `Related Issue(s) (optional)`: real related issues only when they exist.
 
+When generating the final issue or PR body, preserve GitHub autolinking: do not wrap issue numbers, PR numbers, branch names, closing keywords, or `Related Work` values in backticks unless they are being shown as documentation examples rather than emitted as final body content.
+
 ---
 
 ## Step-by-step Workflow
@@ -175,6 +177,7 @@ If the target is GitHub-only work, do not add fake BMAD fields, do not invent a 
     - `Tasks / Acceptance Criteria Addressed`: mirror the GitHub issue AC/tasks that were actually implemented.
     - `Closing Issue (required)`: use `Closes #<primary-issue>` when the PR completes the issue.
     - Do not use a closing keyword for an epic unless the PR actually completes that epic.
+    - In the final PR body, emit GitHub references as plain text, not inline code: write `Closes #123`, `Related to #456`, and `feature/DC-123-short-desc` without surrounding backticks so GitHub can autolink them.
 - Create the PR via GH CLI (pattern):
     ```sh
     gh pr create --base main --head feature/DC-<issue-number>-<short-desc> --title "<commit message or PR title>" --body-file /tmp/pr_body_<desc>.md

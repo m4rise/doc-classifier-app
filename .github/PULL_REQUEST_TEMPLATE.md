@@ -2,6 +2,8 @@
 
 ## Related Work
 
+<!-- Fill the values below as plain text. Do not wrap issue/PR references, branch names, or closing keywords in backticks, or GitHub autolinks will stop working. -->
+
 - **Branch:** <!-- e.g. feature/DC-42-nestjs-backend-bootstrap -->
 - **User Story:** <!-- e.g. #42 — Story 1.2 — NestJS Backend Bootstrap -->
 - **Epic:** <!-- e.g. #7 — Epic 1 — Infrastructure -->

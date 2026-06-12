@@ -70,6 +70,8 @@ If AC or DoD are missing from GitHub, stop and ask the user before implementatio
 9. Compare the final diff against every AC and DoD item.
 10. Prepare PR-ready notes with summary, tests run, risks, and `Closes #<issue-number>`.
 
+When writing final PR body content, keep GitHub references as plain text rather than inline code. Do not wrap issue numbers, PR numbers, branch names, closing keywords, or `Related Work` values in backticks, because that disables GitHub autolinking.
+
 Keep the `bmad-dev-story` discipline even when using the more flexible `bmad-quick-dev` mental model: proceed sequentially, avoid scope creep, update tests with code, verify all AC, and leave a clear implementation status.
 
 ## BMAD Skill Compatibility
@@ -85,6 +87,8 @@ Use `bmad-code-review` after implementation for a fresh acceptance-focused revie
 ## Sync And Traceability Rules
 
 Always reference the issue in the PR body with `Closes #<issue-number>` when the PR completes the story. Do not put closing keywords in commits.
+
+Treat the backticked forms in this skill as instruction examples only. In emitted PR content, write `Closes #123`, `Related to #456`, and similar references without backticks.
 
 Do not manually edit generated BMAD metadata unless the user explicitly asks or the sync script requires it:
 
@@ -122,3 +126,4 @@ Before final response or PR creation, confirm:
 - Local BMAD status mismatches were treated as non-blocking sync issues.
 - PR notes include summary, verification, and `Closes #<issue-number>`.
 - Branch, commit, PR formatting, and GitHub-facing language follow `monorepo-github-flow`.
+- Final PR body preserves GitHub autolinking by leaving issue/PR references, branch names, and `Related Work` values unquoted and without backticks.
