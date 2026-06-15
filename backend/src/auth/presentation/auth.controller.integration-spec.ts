@@ -1,8 +1,7 @@
-import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from '../../app.module';
 import { resolveJwtRefreshSecret } from '../infrastructure/security/jwt-refresh-secret';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
@@ -65,8 +64,15 @@ function asPersistedUserWithConsent(
   return value as PersistedUserWithConsent;
 }
 
+let forwardedIpHost = 1;
+
+function nextForwardedIp(): string {
+  forwardedIpHost += 1;
+  return `198.51.100.${forwardedIpHost}`;
+}
+
 describe('AuthController integration', () => {
-  let app: INestApplication<App>;
+  let app: NestExpressApplication;
   let prisma: PrismaService;
 
   beforeAll(async () => {
@@ -74,7 +80,8 @@ describe('AuthController integration', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
+    app.set('trust proxy', true);
     await app.init();
     prisma = app.get(PrismaService);
   });
@@ -92,9 +99,11 @@ describe('AuthController integration', () => {
 
   it('POST /api/v1/auth/register returns 201 and creates consent record', async () => {
     const email = `john.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',
@@ -129,9 +138,11 @@ describe('AuthController integration', () => {
 
   it('POST /api/v1/auth/register returns 409 when email already exists', async () => {
     const email = `dup.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',
@@ -142,6 +153,7 @@ describe('AuthController integration', () => {
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',
@@ -158,9 +170,11 @@ describe('AuthController integration', () => {
 
   it('POST /api/v1/auth/register returns 400 when tosAccepted is false', async () => {
     const email = `noconsent.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',
@@ -177,16 +191,21 @@ describe('AuthController integration', () => {
 
   it('POST /api/v1/auth/login returns 200 with a JWT access token', async () => {
     const email = `login.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
 
-    await request(app.getHttpServer()).post('/api/v1/auth/register').send({
-      email,
-      password: 'super-secure-password',
-      tosAccepted: true,
-      tosVersion: '1.0',
-    });
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
+      .send({
+        email,
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      });
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',
@@ -215,16 +234,21 @@ describe('AuthController integration', () => {
 
   it('POST /api/v1/auth/refresh rotates refresh token and rejects old token reuse', async () => {
     const email = `refresh.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
 
-    await request(app.getHttpServer()).post('/api/v1/auth/register').send({
-      email,
-      password: 'super-secure-password',
-      tosAccepted: true,
-      tosVersion: '1.0',
-    });
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
+      .send({
+        email,
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      });
 
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',
@@ -277,16 +301,21 @@ describe('AuthController integration', () => {
 
   it('POST /api/v1/auth/logout revokes active refresh tokens and prevents refresh', async () => {
     const email = `logout.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
 
-    await request(app.getHttpServer()).post('/api/v1/auth/register').send({
-      email,
-      password: 'super-secure-password',
-      tosAccepted: true,
-      tosVersion: '1.0',
-    });
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
+      .send({
+        email,
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      });
 
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',
@@ -350,16 +379,21 @@ describe('AuthController integration', () => {
 
   it('POST /api/v1/auth/login returns 401 when password is wrong', async () => {
     const email = `wrong-password.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
 
-    await request(app.getHttpServer()).post('/api/v1/auth/register').send({
-      email,
-      password: 'super-secure-password',
-      tosAccepted: true,
-      tosVersion: '1.0',
-    });
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
+      .send({
+        email,
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      });
 
     await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'wrong-password',
@@ -372,11 +406,53 @@ describe('AuthController integration', () => {
       });
   });
 
+  it('POST /api/v1/auth/login returns 429 on the 11th attempt from the same IP', async () => {
+    const email = `throttle.${Date.now()}@example.com`;
+    const registerIp = nextForwardedIp();
+    const loginIp = nextForwardedIp();
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', registerIp)
+      .send({
+        email,
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      })
+      .expect(201);
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      await request(app.getHttpServer())
+        .post('/api/v1/auth/login')
+        .set('X-Forwarded-For', loginIp)
+        .send({
+          email,
+          password: 'wrong-password',
+        })
+        .expect(401);
+    }
+
+    await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .set('X-Forwarded-For', loginIp)
+      .send({
+        email,
+        password: 'wrong-password',
+      })
+      .expect(429)
+      .expect((res: HttpResponseBody) => {
+        expect(asErrorMessageBody(res.body).message).toBe('Too Many Requests');
+      });
+  });
+
   it('GET /api/v1/auth/me returns req.user from a valid JWT access token', async () => {
     const email = `me.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
 
     const registerResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',
@@ -387,6 +463,7 @@ describe('AuthController integration', () => {
 
     const loginResponse = await request(app.getHttpServer())
       .post('/api/v1/auth/login')
+      .set('X-Forwarded-For', ip)
       .send({
         email,
         password: 'super-secure-password',

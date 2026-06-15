@@ -116,6 +116,12 @@ jobs:
             OTEL_LOGS_EXPORTER=otlp
             THROTTLE_TTL=60
             THROTTLE_LIMIT=100
+            THROTTLE_AUTH_TTL=60
+            THROTTLE_AUTH_LIMIT=10
+            THROTTLE_REGISTER_TTL=60
+            THROTTLE_REGISTER_LIMIT=5
+            THROTTLE_UPLOAD_TTL=60
+            THROTTLE_UPLOAD_LIMIT=10
             CONFIDENCE_THRESHOLD=0.7
             FILE_SIZE_LIMIT_MB=10
             TOS_VERSION=1.0

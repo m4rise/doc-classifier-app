@@ -1,7 +1,6 @@
-import { INestApplication } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from '../../app.module';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 
@@ -27,6 +26,13 @@ interface HttpResponseBody {
   body: unknown;
 }
 
+let forwardedIpHost = 50;
+
+function nextForwardedIp(): string {
+  forwardedIpHost += 1;
+  return `198.51.100.${forwardedIpHost}`;
+}
+
 function asErrorMessageBody(value: unknown): { message?: unknown } {
   if (typeof value === 'object' && value !== null) {
     return value;
@@ -36,11 +42,14 @@ function asErrorMessageBody(value: unknown): { message?: unknown } {
 }
 
 async function registerAndLogin(
-  app: INestApplication<App>,
+  app: NestExpressApplication,
   email: string,
 ): Promise<{ user: RegisterResponseBody; accessToken: string }> {
+  const ip = nextForwardedIp();
+
   const registerResponse = await request(app.getHttpServer())
     .post('/api/v1/auth/register')
+    .set('X-Forwarded-For', ip)
     .send({
       email,
       password: 'super-secure-password',
@@ -51,6 +60,7 @@ async function registerAndLogin(
 
   const loginResponse = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
+    .set('X-Forwarded-For', ip)
     .send({
       email,
       password: 'super-secure-password',
@@ -64,7 +74,7 @@ async function registerAndLogin(
 }
 
 describe('UsersController integration', () => {
-  let app: INestApplication<App>;
+  let app: NestExpressApplication;
   let prisma: PrismaService;
 
   beforeAll(async () => {
@@ -72,7 +82,8 @@ describe('UsersController integration', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
+    app.set('trust proxy', true);
     await app.init();
     prisma = app.get(PrismaService);
   });
@@ -157,5 +168,15 @@ describe('UsersController integration', () => {
       .patch('/api/v1/users/me')
       .send({ email: 'new@example.com' })
       .expect(401);
+  });
+
+  it('GET /api/v1/users returns 403 for a USER role JWT', async () => {
+    const email = `users-admin-denied.${Date.now()}@example.com`;
+    const { accessToken } = await registerAndLogin(app, email);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(403);
   });
 });

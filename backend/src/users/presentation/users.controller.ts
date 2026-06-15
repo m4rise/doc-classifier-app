@@ -5,6 +5,7 @@ import {
   Controller,
   Get,
   NotFoundException,
+  NotImplementedException,
   Patch,
   Req,
   UseGuards,
@@ -12,7 +13,9 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import type { AuthenticatedRequest } from '../../auth/presentation/authenticated-request';
+import { RolesGuard } from '../../auth/infrastructure/authorization/roles.guard';
 import { JwtAuthGuard } from '../../auth/infrastructure/passport/jwt-auth.guard';
+import { Roles } from '../../auth/presentation/roles.decorator';
 import { GetProfileUseCase } from '../application/use-cases/get-profile.use-case';
 import { UpdateProfileUseCase } from '../application/use-cases/update-profile.use-case';
 import {
@@ -24,12 +27,20 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 
 @Controller('api/v1/users')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class UsersController {
   constructor(
     private readonly getProfileUseCase: GetProfileUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
   ) {}
+
+  @Get()
+  @Roles('ADMIN')
+  listUsers(): never {
+    throw new NotImplementedException(
+      'Admin user listing is not implemented yet',
+    );
+  }
 
   @Get('me')
   async getMe(
