@@ -1,3 +1,9 @@
+## [1.7.0](https://github.com/m4rise/doc-classifier-app/compare/v1.6.0...v1.7.0) (2026-06-15)
+
+### Features
+
+* **users:** get and update user profile endpoints ([#100](https://github.com/m4rise/doc-classifier-app/issues/100)) ([db47c75](https://github.com/m4rise/doc-classifier-app/commit/db47c7577143a0d8907a4f6a8d8f835baf86efe0))
+
 ## [1.6.0](https://github.com/m4rise/doc-classifier-app/compare/v1.5.0...v1.6.0) (2026-06-11)
 
 ### Features
