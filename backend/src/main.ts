@@ -8,7 +8,7 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
   });
-  app.set('trust proxy', true);
+  app.set('trust proxy', 1);
   app.useLogger(app.get(Logger));
   await app.listen(process.env.PORT ?? 3000);
 }

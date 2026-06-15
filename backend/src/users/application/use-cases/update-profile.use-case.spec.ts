@@ -13,6 +13,10 @@ class UserProfileRepositoryMock extends UserProfileRepository {
   profiles = new Map<string, UserProfile>();
   lastUpdate: { userId: string; input: UpdateUserProfileInput } | null = null;
 
+  findAll(): Promise<UserProfile[]> {
+    return Promise.resolve([...this.profiles.values()]);
+  }
+
   findById(userId: string): Promise<UserProfile | null> {
     return Promise.resolve(this.profiles.get(userId) ?? null);
   }

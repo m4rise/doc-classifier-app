@@ -17,6 +17,7 @@ const DEFAULT_GLOBAL_LIMIT = 100;
 const DEFAULT_AUTH_TTL_SECONDS = 60;
 const DEFAULT_LOGIN_LIMIT = 10;
 const DEFAULT_REGISTER_LIMIT = 5;
+const DEFAULT_AUTH_SESSION_LIMIT = 60;
 const DEFAULT_UPLOAD_LIMIT = 10;
 const MAX_TIMEOUT_SECONDS = 2_147_483;
 
@@ -44,6 +45,7 @@ export function createLoginThrottleOptions(): NamedThrottleOptions {
     DEFAULT_LOGIN_LIMIT,
     'THROTTLE_AUTH_TTL',
     DEFAULT_AUTH_TTL_SECONDS,
+    getLoginEmailOrIpTracker,
   );
 }
 
@@ -53,6 +55,16 @@ export function createRegisterThrottleOptions(): NamedThrottleOptions {
     DEFAULT_REGISTER_LIMIT,
     'THROTTLE_REGISTER_TTL',
     DEFAULT_AUTH_TTL_SECONDS,
+  );
+}
+
+export function createAuthSessionThrottleOptions(): NamedThrottleOptions {
+  return createNamedThrottleOptions(
+    'THROTTLE_AUTH_SESSION_LIMIT',
+    DEFAULT_AUTH_SESSION_LIMIT,
+    'THROTTLE_AUTH_SESSION_TTL',
+    DEFAULT_AUTH_TTL_SECONDS,
+    getAuthenticatedUserOrIpTracker,
   );
 }
 
@@ -115,6 +127,24 @@ function secondsToMilliseconds(seconds: number): number {
   return seconds * 1000;
 }
 
+function getLoginEmailOrIpTracker(req: Record<string, unknown>): string {
+  const body = req.body;
+
+  if (isRecord(body)) {
+    const email = body.email;
+
+    if (typeof email === 'string') {
+      const normalizedEmail = email.trim().toLowerCase();
+
+      if (normalizedEmail.length > 0) {
+        return `login-email:${normalizedEmail}`;
+      }
+    }
+  }
+
+  return getIpTracker(req);
+}
+
 function getAuthenticatedUserOrIpTracker(req: Record<string, unknown>): string {
   const user = req.user;
 
@@ -126,6 +156,10 @@ function getAuthenticatedUserOrIpTracker(req: Record<string, unknown>): string {
     }
   }
 
+  return getIpTracker(req);
+}
+
+function getIpTracker(req: Record<string, unknown>): string {
   const ip = req.ip;
 
   if (typeof ip === 'string' && ip.length > 0) {

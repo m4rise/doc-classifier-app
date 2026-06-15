@@ -16,6 +16,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
 import {
+  createAuthSessionThrottleOptions,
   createLoginThrottleOptions,
   createRegisterThrottleOptions,
 } from '../../shared/infrastructure/rate-limiting/throttle.config';
@@ -106,6 +107,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @Throttle(createAuthSessionThrottleOptions())
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: AuthenticatedRequest): Promise<void> {
@@ -113,6 +115,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Throttle(createAuthSessionThrottleOptions())
   @HttpCode(HttpStatus.OK)
   @UseGuards(RefreshTokenGuard)
   async refresh(
@@ -140,6 +143,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @Throttle(createAuthSessionThrottleOptions())
   @UseGuards(JwtAuthGuard)
   me(@Req() req: AuthenticatedRequest): AuthenticatedUserResponseDto {
     return req.user;

@@ -5,7 +5,6 @@ import {
   Controller,
   Get,
   NotFoundException,
-  NotImplementedException,
   Patch,
   Req,
   UseGuards,
@@ -17,6 +16,7 @@ import { RolesGuard } from '../../auth/infrastructure/authorization/roles.guard'
 import { JwtAuthGuard } from '../../auth/infrastructure/passport/jwt-auth.guard';
 import { Roles } from '../../auth/presentation/roles.decorator';
 import { GetProfileUseCase } from '../application/use-cases/get-profile.use-case';
+import { ListUsersUseCase } from '../application/use-cases/list-users.use-case';
 import { UpdateProfileUseCase } from '../application/use-cases/update-profile.use-case';
 import {
   UserProfileEmailAlreadyInUseError,
@@ -31,15 +31,14 @@ import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 export class UsersController {
   constructor(
     private readonly getProfileUseCase: GetProfileUseCase,
+    private readonly listUsersUseCase: ListUsersUseCase,
     private readonly updateProfileUseCase: UpdateProfileUseCase,
   ) {}
 
   @Get()
   @Roles('ADMIN')
-  listUsers(): never {
-    throw new NotImplementedException(
-      'Admin user listing is not implemented yet',
-    );
+  async listUsers(): Promise<UserProfileResponseDto[]> {
+    return this.listUsersUseCase.execute();
   }
 
   @Get('me')

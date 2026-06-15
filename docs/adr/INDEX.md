@@ -34,6 +34,7 @@ Format : [MADR](https://adr.github.io/madr/) - chaque ADR documente le contexte,
 | [ADR-SEC-002](./ADR-SEC-002-mcp-authentication.md)        | Authentification MCP - `X-MCP-Key` statique                       | Accepted |
 | [ADR-SEC-003](./ADR-SEC-003-refresh-token-revocation.md)  | Révocation refresh token - stockage DB, rotation, `jti`, Argon2id | Accepted |
 | [ADR-SEC-004](./ADR-SEC-004-query-safety.md)              | Sécurité requêtes SQL - `$queryRaw` + règle ESLint                | Accepted |
+| [ADR-SEC-005](./ADR-SEC-005-rate-limiting.md)             | Limitation de débit des endpoints d'authentification              | Accepted |
 
 ---
 

@@ -1,5 +1,6 @@
 import { ExecutionContext } from '@nestjs/common';
 import {
+  createAuthSessionThrottleOptions,
   createLoginThrottleOptions,
   createRegisterThrottleOptions,
   createThrottlerModuleOptions,
@@ -31,7 +32,7 @@ describe('throttle config', () => {
     process.env.THROTTLE_AUTH_TTL = '45';
     process.env.THROTTLE_AUTH_LIMIT = '12';
 
-    expect(createLoginThrottleOptions()).toEqual({
+    expect(createLoginThrottleOptions()).toMatchObject({
       default: { ttl: 45000, limit: 12 },
     });
   });
@@ -58,9 +59,39 @@ describe('throttle config', () => {
     process.env.THROTTLE_AUTH_TTL = '2147484';
     process.env.THROTTLE_AUTH_LIMIT = '11';
 
-    expect(createLoginThrottleOptions()).toEqual({
+    expect(createLoginThrottleOptions()).toMatchObject({
       default: { ttl: 60000, limit: 11 },
     });
+  });
+
+  it('tracks login throttling by normalized email before falling back to IP', () => {
+    const options = createLoginThrottleOptions();
+    const getTracker = options.default.getTracker;
+
+    expect(
+      getTracker?.(
+        { body: { email: ' User@Example.COM ' }, ip: '198.51.100.12' },
+        {} as ExecutionContext,
+      ),
+    ).toBe('login-email:user@example.com');
+    expect(
+      getTracker?.({ body: {}, ip: '198.51.100.13' }, {} as ExecutionContext),
+    ).toBe('ip:198.51.100.13');
+  });
+
+  it('tracks authenticated auth-session throttling by user before falling back to IP', () => {
+    const options = createAuthSessionThrottleOptions();
+    const getTracker = options.default.getTracker;
+
+    expect(
+      getTracker?.(
+        { user: { userId: 'user-1' }, ip: '198.51.100.14' },
+        {} as ExecutionContext,
+      ),
+    ).toBe('user:user-1');
+    expect(getTracker?.({ ip: '198.51.100.15' }, {} as ExecutionContext)).toBe(
+      'ip:198.51.100.15',
+    );
   });
 
   it('tracks upload throttling by authenticated user before falling back to IP', () => {

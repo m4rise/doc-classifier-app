@@ -43,6 +43,15 @@ export class PrismaUserProfileRepository extends UserProfileRepository {
     super();
   }
 
+  async findAll(): Promise<UserProfile[]> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, email: true, role: true, createdAt: true },
+    });
+
+    return users.map(toDomainProfile);
+  }
+
   async findById(userId: string): Promise<UserProfile | null> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },

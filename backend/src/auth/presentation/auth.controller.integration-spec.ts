@@ -81,7 +81,7 @@ describe('AuthController integration', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication<NestExpressApplication>();
-    app.set('trust proxy', true);
+    app.set('trust proxy', 1);
     await app.init();
     prisma = app.get(PrismaService);
   });
@@ -510,5 +510,41 @@ describe('AuthController integration', () => {
       .expect((res: HttpResponseBody) => {
         expect(asErrorMessageBody(res.body).message).toBe('Token expired');
       });
+  });
+
+  it('GET /api/v1/auth/me returns 401 when the user is inactive after token issuance', async () => {
+    const email = `inactive-token.${Date.now()}@example.com`;
+    const ip = nextForwardedIp();
+
+    const registerResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/register')
+      .set('X-Forwarded-For', ip)
+      .send({
+        email,
+        password: 'super-secure-password',
+        tosAccepted: true,
+        tosVersion: '1.0',
+      })
+      .expect(201);
+
+    const loginResponse = await request(app.getHttpServer())
+      .post('/api/v1/auth/login')
+      .set('X-Forwarded-For', ip)
+      .send({
+        email,
+        password: 'super-secure-password',
+      })
+      .expect(200);
+    const token = (loginResponse.body as LoginResponseBody).accessToken;
+
+    await prisma.user.update({
+      where: { id: (registerResponse.body as RegisterResponseBody).id },
+      data: { isActive: false },
+    });
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', `Bearer ${token}`)
+      .expect(401);
   });
 });

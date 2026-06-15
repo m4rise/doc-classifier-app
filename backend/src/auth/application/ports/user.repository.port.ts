@@ -15,6 +15,7 @@ export interface UserCredentials {
 }
 
 export abstract class UserRepository {
+  abstract findById(userId: string): Promise<User | null>;
   abstract findByEmail(email: Email): Promise<User | null>;
   abstract findCredentialsByEmail(
     email: Email,

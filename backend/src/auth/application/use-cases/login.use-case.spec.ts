@@ -12,6 +12,10 @@ class UserRepositoryMock extends UserRepository {
     passwordHash: 'argon2id-hash',
   };
 
+  findById(): Promise<User | null> {
+    return Promise.resolve(null);
+  }
+
   findByEmail(): Promise<User | null> {
     return Promise.resolve(null);
   }

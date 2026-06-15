@@ -30,6 +30,10 @@ class RefreshTokenRepositoryMock extends RefreshTokenRepository {
     return Promise.resolve();
   }
 
+  revokeIfActive(): Promise<boolean> {
+    return Promise.resolve(false);
+  }
+
   revokeAllForUser(userId: string, revokedAt: Date): Promise<void> {
     this.revokedAll.push({ userId, revokedAt });
     return Promise.resolve();
