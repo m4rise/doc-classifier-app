@@ -64,7 +64,7 @@ describe('throttle config', () => {
     });
   });
 
-  it('tracks login throttling by normalized email before falling back to IP', () => {
+  it('tracks login throttling by IP', () => {
     const options = createLoginThrottleOptions();
     const getTracker = options.default.getTracker;
 
@@ -73,7 +73,7 @@ describe('throttle config', () => {
         { body: { email: ' User@Example.COM ' }, ip: '198.51.100.12' },
         {} as ExecutionContext,
       ),
-    ).toBe('login-email:user@example.com');
+    ).toBe('ip:198.51.100.12');
     expect(
       getTracker?.({ body: {}, ip: '198.51.100.13' }, {} as ExecutionContext),
     ).toBe('ip:198.51.100.13');

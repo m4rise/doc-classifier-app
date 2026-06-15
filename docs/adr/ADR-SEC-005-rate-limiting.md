@@ -48,8 +48,7 @@ Le backend définit :
 
 - une limite globale par défaut pour tous les endpoints ;
 - une limite plus stricte pour l'inscription ;
-- une limite plus stricte pour le login, indexée par email normalisé quand il
-  est disponible, avec fallback IP ;
+- une limite plus stricte pour le login, indexée par IP client fiable ;
 - une limite dédiée aux endpoints d'authentification déjà authentifiés
   (`logout`, `refresh`, `me`), indexée par utilisateur authentifié quand il est
   disponible, avec fallback IP ;
@@ -61,9 +60,10 @@ Cloud Run qu'une confiance illimitée dans toute la chaîne proxy.
 
 ## Conséquences
 
-- Les tentatives de brute-force login sont limitées même si l'attaquant fait
-  tourner les IPs pour un même email cible.
-- Les inscriptions et les logins mal formés restent protégés par fallback IP.
+- Les tentatives de brute-force login sont limitées par IP client, conformément
+  au contrat de la story.
+- Une protection complémentaire par compte ou email pourra être ajoutée plus
+  tard si le risque de password spraying distribué devient prioritaire.
 - Les endpoints auth authentifiés sont protégés contre les boucles client et les
   tempêtes de refresh token.
 - Les compteurs en mémoire sont propres à chaque instance. Un backend Redis

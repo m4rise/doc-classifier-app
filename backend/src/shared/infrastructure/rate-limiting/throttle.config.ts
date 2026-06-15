@@ -45,7 +45,7 @@ export function createLoginThrottleOptions(): NamedThrottleOptions {
     DEFAULT_LOGIN_LIMIT,
     'THROTTLE_AUTH_TTL',
     DEFAULT_AUTH_TTL_SECONDS,
-    getLoginEmailOrIpTracker,
+    getIpTracker,
   );
 }
 
@@ -125,24 +125,6 @@ function readPositiveIntegerEnv(
 
 function secondsToMilliseconds(seconds: number): number {
   return seconds * 1000;
-}
-
-function getLoginEmailOrIpTracker(req: Record<string, unknown>): string {
-  const body = req.body;
-
-  if (isRecord(body)) {
-    const email = body.email;
-
-    if (typeof email === 'string') {
-      const normalizedEmail = email.trim().toLowerCase();
-
-      if (normalizedEmail.length > 0) {
-        return `login-email:${normalizedEmail}`;
-      }
-    }
-  }
-
-  return getIpTracker(req);
 }
 
 function getAuthenticatedUserOrIpTracker(req: Record<string, unknown>): string {
