@@ -8,6 +8,7 @@ import { HealthModule } from './health/health.module';
 import { ObservabilityModule } from './infrastructure/observability/observability.module';
 import { PrismaModule } from './shared/infrastructure/database/prisma.module';
 import { RequestIdInterceptor } from './shared/interceptors/request-id.interceptor';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { RequestIdInterceptor } from './shared/interceptors/request-id.intercept
       },
     }),
     AuthModule,
+    UsersModule,
     HealthModule,
   ],
   controllers: [AppController],

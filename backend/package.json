@@ -17,7 +17,7 @@
     "test:watch": "jest --watch --selectProjects unit",
     "test:cov": "jest --coverage --selectProjects unit",
     "test:debug": "jest --runInBand --selectProjects unit --detectOpenHandles",
-    "test:integration": "jest --selectProjects integration --passWithNoTests",
+    "test:integration": "jest --selectProjects integration --passWithNoTests --runInBand",
     "test:e2e": "jest --selectProjects e2e --passWithNoTests",
     "db:migrate:dev": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
