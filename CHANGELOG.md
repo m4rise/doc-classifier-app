@@ -1,3 +1,9 @@
+## [1.8.0](https://github.com/m4rise/doc-classifier-app/compare/v1.7.0...v1.8.0) (2026-06-16)
+
+### Features
+
+* **auth:** add roles guard and auth rate limiting ([#101](https://github.com/m4rise/doc-classifier-app/issues/101)) ([81341cd](https://github.com/m4rise/doc-classifier-app/commit/81341cd9614fd2b2ba24e3f31df57c55170ef469))
+
 ## [1.7.0](https://github.com/m4rise/doc-classifier-app/compare/v1.6.0...v1.7.0) (2026-06-15)
 
 ### Features
