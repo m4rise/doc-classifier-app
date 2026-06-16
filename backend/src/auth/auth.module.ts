@@ -28,6 +28,7 @@ import { LocalAuthGuard } from './infrastructure/passport/local-auth.guard';
 import { LocalStrategy } from './infrastructure/passport/local.strategy';
 import { RefreshTokenGuard } from './infrastructure/passport/refresh-token.guard';
 import { RefreshTokenStrategy } from './infrastructure/passport/refresh-token.strategy';
+import { RolesGuard } from './infrastructure/authorization/roles.guard';
 import { PrismaRefreshTokenRepository } from './infrastructure/persistence/prisma-refresh-token.repository';
 import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.repository';
 import { Argon2PasswordHasher } from './infrastructure/security/argon2-password-hasher';
@@ -56,6 +57,7 @@ import { AuthController } from './presentation/auth.controller';
     RefreshTokenStrategy,
     LocalAuthGuard,
     JwtAuthGuard,
+    RolesGuard,
     RefreshTokenGuard,
     { provide: USER_REPOSITORY, useExisting: PrismaUserRepository },
     {
@@ -154,6 +156,6 @@ import { AuthController } from './presentation/auth.controller';
       inject: [REFRESH_TOKEN_REPOSITORY],
     },
   ],
-  exports: [JwtAuthGuard],
+  exports: [JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}

@@ -7,7 +7,7 @@ backend:
 
 - registration;
 - login;
-- access token validation;
+- access token validation with user status and role lookup;
 - refresh token issuance;
 - refresh token rotation;
 - refresh token revocation and reuse detection.
@@ -71,8 +71,10 @@ The system uses two different tokens:
 - an access token, short-lived and stateless;
 - a refresh token, long-lived and stateful.
 
-The access token is only validated by JWT signature and expiration. It is not
-looked up in the database during normal request authentication.
+The access token is validated by JWT signature and expiration, then the current
+user record is loaded from the database. This keeps `isActive`, email, and role
+changes authoritative even while an access token is still within its 15-minute
+lifetime.
 
 The refresh token is a signed JWT, but it is also tracked in the database. This
 enables:
@@ -171,8 +173,9 @@ This means:
 
 1. `JwtAuthGuard` extracts the bearer token.
 2. `JwtStrategy` verifies the access token with the access secret.
-3. If valid, the payload is mapped to an `AuthenticatedUser`.
-4. The request proceeds without any database lookup.
+3. If valid, the strategy loads the current user by `sub`.
+4. Inactive or missing users are rejected.
+5. The request proceeds with the current database email and role.
 
 ### Relevant code
 
@@ -183,8 +186,8 @@ This means:
 ### Implication
 
 Revoking refresh tokens does not immediately invalidate already-issued access
-tokens. Those access tokens remain usable until their own expiration, which is
-currently limited to 15 minutes.
+tokens by `jti`, but access tokens stop working as soon as the user is disabled
+or their role no longer satisfies the protected route.
 
 ## Flow 4: Refreshing tokens
 
@@ -215,10 +218,13 @@ perform JWT-level checks:
 5. reject if `expiresAt` is in the past;
 6. verify the raw bearer token against `tokenHash`;
 7. reject if the hash check fails;
-8. revoke the current refresh token row;
+8. atomically revoke the current refresh token row only if it is still active;
 9. issue a brand-new access/refresh token pair.
 
 This is refresh-token rotation: one refresh token is expected to be used once.
+If another request consumes the same token between validation and revocation, the
+second request is treated as refresh-token reuse and all active refresh tokens
+for the user are revoked.
 
 ### Relevant code
 
@@ -236,7 +242,7 @@ This is refresh-token rotation: one refresh token is expected to be used once.
 ### Sequence
 
 1. `JwtAuthGuard` validates the access token.
-2. `JwtStrategy` maps the access token payload to an `AuthenticatedUser`.
+2. `JwtStrategy` reloads the current active user from the database.
 3. `LogoutUseCase` revokes all active refresh tokens for the authenticated
    `userId` by setting `revokedAt`.
 4. The route returns HTTP 200 with an empty response body.
@@ -260,7 +266,8 @@ stateless and remain valid until their own expiration.
 ### Single-token revocation
 
 After a successful refresh, the old token is revoked by setting `revokedAt` on
-its row before issuing a new one.
+its row before issuing a new one. The revoke operation is conditional on
+`revokedAt` still being null, which closes the concurrent double-refresh window.
 
 Relevant code:
 
@@ -319,7 +326,9 @@ Relevant code:
 ## Current limitations
 
 - No explicit admin or user-facing session listing exists yet.
-- Access tokens are not revoked server-side once issued.
+- Access tokens are not individually revoked server-side once issued, but user
+  status and role are checked against the database on every JWT-authenticated
+  request.
 - Expired or revoked refresh-token rows require periodic cleanup later.
 
 ## Related files

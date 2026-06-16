@@ -5,6 +5,7 @@ export interface UpdateUserProfileInput {
 }
 
 export abstract class UserProfileRepository {
+  abstract findAll(): Promise<UserProfile[]>;
   abstract findById(userId: string): Promise<UserProfile | null>;
   abstract findByEmail(email: string): Promise<UserProfile | null>;
   abstract update(

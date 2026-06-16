@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -7,6 +8,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { ObservabilityModule } from './infrastructure/observability/observability.module';
 import { PrismaModule } from './shared/infrastructure/database/prisma.module';
+import { createThrottlerModuleOptions } from './shared/infrastructure/rate-limiting/throttle.config';
 import { RequestIdInterceptor } from './shared/interceptors/request-id.interceptor';
 import { UsersModule } from './users/users.module';
 
@@ -16,6 +18,7 @@ import { UsersModule } from './users/users.module';
     // in the DI container once; all feature modules access them without re-importing.
     PrismaModule,
     ObservabilityModule,
+    ThrottlerModule.forRoot(createThrottlerModuleOptions()),
     LoggerModule.forRoot({
       pinoHttp: {
         genReqId: () => crypto.randomUUID(),
@@ -34,6 +37,7 @@ import { UsersModule } from './users/users.module';
   controllers: [AppController],
   providers: [
     AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_INTERCEPTOR, useClass: RequestIdInterceptor },
   ],
 })

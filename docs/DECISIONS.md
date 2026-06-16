@@ -21,3 +21,4 @@ Pour chaque décision, voir le détail dans `docs/adr/`.
 - [ADR-SEC-002 - MCP authentication](adr/ADR-SEC-002-mcp-authentication.md)
 - [ADR-SEC-003 - Refresh token revocation, rotation, `jti`, Argon2id](adr/ADR-SEC-003-refresh-token-revocation.md)
 - [ADR-SEC-004 - Query safety](adr/ADR-SEC-004-query-safety.md)
+- [ADR-SEC-005 - Limitation de débit des endpoints d'authentification](adr/ADR-SEC-005-rate-limiting.md)

@@ -28,6 +28,24 @@ export class PrismaUserRepository extends UserRepository {
     super();
   }
 
+  async findById(userId: string): Promise<User | null> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, isActive: true },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    return new User(
+      user.id,
+      Email.create(user.email),
+      toDomainRole(user.role),
+      user.isActive,
+    );
+  }
+
   async findByEmail(email: Email): Promise<User | null> {
     const user = await this.prisma.user.findUnique({
       where: { email: email.value },

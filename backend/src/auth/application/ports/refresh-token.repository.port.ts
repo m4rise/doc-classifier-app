@@ -12,5 +12,6 @@ export abstract class RefreshTokenRepository {
   abstract findByJti(jti: string): Promise<RefreshToken | null>;
   abstract create(input: CreateRefreshTokenInput): Promise<RefreshToken>;
   abstract revoke(id: string, revokedAt: Date): Promise<void>;
+  abstract revokeIfActive(id: string, revokedAt: Date): Promise<boolean>;
   abstract revokeAllForUser(userId: string, revokedAt: Date): Promise<void>;
 }

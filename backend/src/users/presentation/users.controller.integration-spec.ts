@@ -1,8 +1,8 @@
-import { INestApplication } from '@nestjs/common';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import { App } from 'supertest/types';
 import { AppModule } from '../../app.module';
+import { Role } from '../../generated/prisma';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 
 interface RegisterResponseBody {
@@ -27,6 +27,13 @@ interface HttpResponseBody {
   body: unknown;
 }
 
+let forwardedIpHost = 50;
+
+function nextForwardedIp(): string {
+  forwardedIpHost += 1;
+  return `198.51.100.${forwardedIpHost}`;
+}
+
 function asErrorMessageBody(value: unknown): { message?: unknown } {
   if (typeof value === 'object' && value !== null) {
     return value;
@@ -36,11 +43,14 @@ function asErrorMessageBody(value: unknown): { message?: unknown } {
 }
 
 async function registerAndLogin(
-  app: INestApplication<App>,
+  app: NestExpressApplication,
   email: string,
 ): Promise<{ user: RegisterResponseBody; accessToken: string }> {
+  const ip = nextForwardedIp();
+
   const registerResponse = await request(app.getHttpServer())
     .post('/api/v1/auth/register')
+    .set('X-Forwarded-For', ip)
     .send({
       email,
       password: 'super-secure-password',
@@ -51,6 +61,7 @@ async function registerAndLogin(
 
   const loginResponse = await request(app.getHttpServer())
     .post('/api/v1/auth/login')
+    .set('X-Forwarded-For', ip)
     .send({
       email,
       password: 'super-secure-password',
@@ -63,8 +74,24 @@ async function registerAndLogin(
   };
 }
 
+async function login(
+  app: NestExpressApplication,
+  email: string,
+): Promise<string> {
+  const loginResponse = await request(app.getHttpServer())
+    .post('/api/v1/auth/login')
+    .set('X-Forwarded-For', nextForwardedIp())
+    .send({
+      email,
+      password: 'super-secure-password',
+    })
+    .expect(200);
+
+  return (loginResponse.body as LoginResponseBody).accessToken;
+}
+
 describe('UsersController integration', () => {
-  let app: INestApplication<App>;
+  let app: NestExpressApplication;
   let prisma: PrismaService;
 
   beforeAll(async () => {
@@ -72,7 +99,8 @@ describe('UsersController integration', () => {
       imports: [AppModule],
     }).compile();
 
-    app = moduleFixture.createNestApplication();
+    app = moduleFixture.createNestApplication<NestExpressApplication>();
+    app.set('trust proxy', 1);
     await app.init();
     prisma = app.get(PrismaService);
   });
@@ -157,5 +185,78 @@ describe('UsersController integration', () => {
       .patch('/api/v1/users/me')
       .send({ email: 'new@example.com' })
       .expect(401);
+  });
+
+  it('GET /api/v1/users returns 403 for a USER role JWT', async () => {
+    const email = `users-admin-denied.${Date.now()}@example.com`;
+    const { accessToken } = await registerAndLogin(app, email);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(403);
+  });
+
+  it('GET /api/v1/users returns user profiles for an ADMIN role JWT', async () => {
+    const adminEmail = `users-admin.${Date.now()}@example.com`;
+    const userEmail = `users-listed.${Date.now()}@example.com`;
+    const { user: admin } = await registerAndLogin(app, adminEmail);
+    const { user } = await registerAndLogin(app, userEmail);
+
+    await prisma.user.update({
+      where: { id: admin.id },
+      data: { role: Role.ADMIN },
+    });
+    const adminToken = await login(app, adminEmail);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        expect(Array.isArray(res.body)).toBe(true);
+        const body = res.body as UserProfileResponseBody[];
+        expect(body).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: admin.id,
+              email: adminEmail,
+              role: 'ADMIN',
+            }),
+            expect.objectContaining({
+              id: user.id,
+              email: userEmail,
+              role: 'USER',
+            }),
+          ]),
+        );
+        expect(body[0]).not.toHaveProperty('passwordHash');
+      });
+  });
+
+  it('GET /api/v1/users denies a stale ADMIN token after role demotion', async () => {
+    const email = `users-demoted-admin.${Date.now()}@example.com`;
+    const { user } = await registerAndLogin(app, email);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: Role.ADMIN },
+    });
+    const adminToken = await login(app, email);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { role: Role.USER },
+    });
+
+    await request(app.getHttpServer())
+      .get('/api/v1/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(403);
   });
 });

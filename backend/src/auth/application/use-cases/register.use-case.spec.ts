@@ -23,6 +23,10 @@ class UserRepositoryMock extends UserRepository {
   );
   lastCreateInput: CreateUserWithConsentInput | null = null;
 
+  findById(): Promise<User | null> {
+    return Promise.resolve(null);
+  }
+
   findByEmail(email: Email): Promise<User | null> {
     if (!this.existingUser) {
       return Promise.resolve(null);

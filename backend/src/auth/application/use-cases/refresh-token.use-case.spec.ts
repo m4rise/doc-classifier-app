@@ -18,6 +18,7 @@ class RefreshTokenRepositoryMock extends RefreshTokenRepository {
   created: CreateRefreshTokenInput[] = [];
   revoked: Array<{ id: string; revokedAt: Date }> = [];
   revokedAll: Array<{ userId: string; revokedAt: Date }> = [];
+  revokeIfActiveResult = true;
 
   findByJti(jti: string): Promise<RefreshToken | null> {
     return Promise.resolve(this.tokens.get(jti) ?? null);
@@ -42,6 +43,11 @@ class RefreshTokenRepositoryMock extends RefreshTokenRepository {
   revoke(id: string, revokedAt: Date): Promise<void> {
     this.revoked.push({ id, revokedAt });
     return Promise.resolve();
+  }
+
+  revokeIfActive(id: string, revokedAt: Date): Promise<boolean> {
+    this.revoked.push({ id, revokedAt });
+    return Promise.resolve(this.revokeIfActiveResult);
   }
 
   revokeAllForUser(userId: string, revokedAt: Date): Promise<void> {
@@ -164,6 +170,40 @@ describe('RefreshTokenUseCase', () => {
         user.role,
         new Date('2026-06-15T10:00:00.000Z'),
         new Date('2026-06-08T09:00:00.000Z'),
+      ),
+    );
+    const useCase = createUseCase(repository);
+
+    await expect(
+      useCase.execute({
+        refreshToken: 'old-refresh-token',
+        payload: {
+          sub: user.userId,
+          email: user.email,
+          role: user.role,
+          jti: 'old-jti',
+        },
+      }),
+    ).rejects.toBeInstanceOf(RefreshTokenReusedError);
+
+    expect(repository.revokedAll).toEqual([
+      { userId: user.userId, revokedAt: now },
+    ]);
+  });
+
+  it('revokes all user tokens when the token was consumed concurrently', async () => {
+    const repository = new RefreshTokenRepositoryMock();
+    repository.revokeIfActiveResult = false;
+    repository.tokens.set(
+      'old-jti',
+      new RefreshToken(
+        'refresh-1',
+        'old-jti',
+        'stored-hash',
+        user.userId,
+        user.email,
+        user.role,
+        new Date('2026-06-15T10:00:00.000Z'),
       ),
     );
     const useCase = createUseCase(repository);

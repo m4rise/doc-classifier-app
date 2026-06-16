@@ -74,7 +74,18 @@ export class RefreshTokenUseCase {
       throw new RefreshTokenInvalidError();
     }
 
-    await this.refreshTokenRepository.revoke(persistedToken.id, this.now());
+    const revoked = await this.refreshTokenRepository.revokeIfActive(
+      persistedToken.id,
+      this.now(),
+    );
+
+    if (!revoked) {
+      await this.refreshTokenRepository.revokeAllForUser(
+        persistedToken.userId,
+        this.now(),
+      );
+      throw new RefreshTokenReusedError();
+    }
 
     return this.issueAuthTokensUseCase.execute({
       userId: persistedToken.userId,

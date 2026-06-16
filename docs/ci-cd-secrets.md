@@ -54,6 +54,12 @@ workflow handles the translation:
 | `OTEL_LOGS_EXPORTER`          |      ✅      |                    | ✅                       |           |             | OTEL logs exporter.                                                                       |
 | `THROTTLE_TTL`                |      ✅      |                    | ✅ `=60`                 |           |             | Rate-limit window in seconds.                                                             |
 | `THROTTLE_LIMIT`              |      ✅      |                    | ✅ `=100`                |           |             | Maximum requests per IP per window.                                                       |
+| `THROTTLE_AUTH_TTL`           |      ✅      |                    | ✅ `=60`                 |           |             | Login rate-limit window in seconds.                                                       |
+| `THROTTLE_AUTH_LIMIT`         |      ✅      |                    | ✅ `=10`                 |           |             | Maximum login attempts per IP per auth window.                                            |
+| `THROTTLE_REGISTER_TTL`       |      ✅      |                    | ✅ `=60`                 |           |             | Register rate-limit window in seconds.                                                    |
+| `THROTTLE_REGISTER_LIMIT`     |      ✅      |                    | ✅ `=5`                  |           |             | Maximum register attempts per IP per register window.                                     |
+| `THROTTLE_UPLOAD_TTL`         |      ✅      |                    | ✅ `=60`                 |           |             | Upload rate-limit window in seconds for the future upload endpoint.                       |
+| `THROTTLE_UPLOAD_LIMIT`       |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload attempts per user/IP per upload window for the future upload endpoint.     |
 | `CONFIDENCE_THRESHOLD`        |      ✅      |                    | ✅ `=0.7`                |           |             | Minimum AI confidence score for auto-validation.                                          |
 | `FILE_SIZE_LIMIT_MB`          |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload file size in MB.                                                           |
 | `TOS_VERSION`                 |      ✅      |                    | ✅ `=1.0`                |           |             | Current Terms of Service version required at registration.                                |
@@ -173,6 +179,12 @@ The backend deploy currently injects these as `env_vars`:
 - `OTEL_LOGS_EXPORTER=otlp`
 - `THROTTLE_TTL=60`
 - `THROTTLE_LIMIT=100`
+- `THROTTLE_AUTH_TTL=60`
+- `THROTTLE_AUTH_LIMIT=10`
+- `THROTTLE_REGISTER_TTL=60`
+- `THROTTLE_REGISTER_LIMIT=5`
+- `THROTTLE_UPLOAD_TTL=60`
+- `THROTTLE_UPLOAD_LIMIT=10`
 - `CONFIDENCE_THRESHOLD=0.7`
 - `FILE_SIZE_LIMIT_MB=10`
 - `TOS_VERSION=1.0`

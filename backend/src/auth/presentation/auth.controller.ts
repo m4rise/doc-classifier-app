@@ -13,7 +13,13 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Request } from 'express';
+import {
+  createAuthSessionThrottleOptions,
+  createLoginThrottleOptions,
+  createRegisterThrottleOptions,
+} from '../../shared/infrastructure/rate-limiting/throttle.config';
 import { IssueAuthTokensUseCase } from '../application/use-cases/issue-auth-tokens.use-case';
 import { LogoutUseCase } from '../application/use-cases/logout.use-case';
 import { RefreshTokenUseCase } from '../application/use-cases/refresh-token.use-case';
@@ -51,6 +57,7 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @Throttle(createRegisterThrottleOptions())
   @HttpCode(HttpStatus.CREATED)
   @UsePipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true }))
   async register(
@@ -92,6 +99,7 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle(createLoginThrottleOptions())
   @HttpCode(HttpStatus.OK)
   @UseGuards(LocalAuthGuard)
   async login(@Req() req: AuthenticatedRequest): Promise<LoginResponseDto> {
@@ -99,6 +107,7 @@ export class AuthController {
   }
 
   @Post('logout')
+  @Throttle(createAuthSessionThrottleOptions())
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: AuthenticatedRequest): Promise<void> {
@@ -106,6 +115,7 @@ export class AuthController {
   }
 
   @Post('refresh')
+  @Throttle(createAuthSessionThrottleOptions())
   @HttpCode(HttpStatus.OK)
   @UseGuards(RefreshTokenGuard)
   async refresh(
@@ -133,6 +143,7 @@ export class AuthController {
   }
 
   @Get('me')
+  @Throttle(createAuthSessionThrottleOptions())
   @UseGuards(JwtAuthGuard)
   me(@Req() req: AuthenticatedRequest): AuthenticatedUserResponseDto {
     return req.user;

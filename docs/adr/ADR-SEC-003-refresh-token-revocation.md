@@ -77,3 +77,10 @@ du user sont révoqués.
 - `JWT_REFRESH_SECRET` doit être configuré séparément de `JWT_ACCESS_SECRET`.
 - Le `jti` évite de scanner les tokens du user, tout en conservant la
   vérification du hash.
+
+## Note de concurrence
+
+La rotation d'un refresh token doit consommer l'ancien token avec une mise à jour
+conditionnelle sur `revokedAt IS NULL`. Si la ligne a déjà été révoquée par une
+requête concurrente, la deuxième requête est traitée comme une réutilisation de
+token et tous les refresh tokens actifs de l'utilisateur sont révoqués.

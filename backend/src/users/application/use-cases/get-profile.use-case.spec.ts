@@ -6,6 +6,10 @@ import { GetProfileUseCase } from './get-profile.use-case';
 class UserProfileRepositoryMock extends UserProfileRepository {
   profile: UserProfile | null = null;
 
+  findAll(): Promise<UserProfile[]> {
+    return Promise.resolve([]);
+  }
+
   findById(): Promise<UserProfile | null> {
     return Promise.resolve(this.profile);
   }
