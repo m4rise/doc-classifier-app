@@ -107,6 +107,7 @@ jobs:
           # Non-sensitive config — passed as plain env vars.
           env_vars: |
             NODE_ENV=production
+            FILE_STORAGE_DRIVER=gcs
             GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
             GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}
             OTEL_SERVICE_NAME=doc-classifier-app-backend

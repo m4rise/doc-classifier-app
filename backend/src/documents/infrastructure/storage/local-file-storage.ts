@@ -3,6 +3,7 @@ import { mkdir, writeFile } from 'fs/promises';
 import { resolve, sep } from 'path';
 import { pathToFileURL } from 'url';
 import { IFileStorage } from '../../../shared/interfaces/IFileStorage';
+import { assertValidDocumentStorageKey } from './document-storage-key';
 
 @Injectable()
 export class LocalFileStorage implements IFileStorage {
@@ -19,6 +20,7 @@ export class LocalFileStorage implements IFileStorage {
 
   async upload(key: string, buffer: Buffer, mimeType: string): Promise<void> {
     void mimeType;
+    assertValidDocumentStorageKey(key);
     const filePath = this.resolveStoragePath(key);
 
     await mkdir(this.uploadDirectory, { recursive: true });
@@ -27,16 +29,13 @@ export class LocalFileStorage implements IFileStorage {
 
   getSignedUrl(key: string, ttlSeconds: number): Promise<string> {
     void ttlSeconds;
+    assertValidDocumentStorageKey(key);
     return Promise.resolve(
       pathToFileURL(this.resolveStoragePath(key)).toString(),
     );
   }
 
   private resolveStoragePath(key: string): string {
-    if (key.length === 0 || key.includes('/') || key.includes('\\')) {
-      throw new Error('Invalid storage key');
-    }
-
     const filePath = resolve(this.uploadDirectory, key);
 
     if (!filePath.startsWith(`${this.uploadDirectory}${sep}`)) {

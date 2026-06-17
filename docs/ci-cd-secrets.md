@@ -16,6 +16,12 @@ workflow handles the translation:
 | `GCS_BUCKET_NAME`            | `vars.GCS_BUCKET_NAME`      | `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}` | Same name in both                  |
 | `DATABASE_URL`               | GCP Secret Manager          | `DATABASE_URL=DATABASE_URL:latest`            | prod DB, injected at runtime       |
 | `DATABASE_URL` (migrations)  | `secrets.DATABASE_URL_PROD` | env var in prisma migrate step                | GH secret, used only by deploy job |
+| `FILE_STORAGE_DRIVER`        | literal deploy config       | `FILE_STORAGE_DRIVER=gcs`                     | Cloud Run uses GCS storage         |
+
+Runtime IAM prerequisite: the Cloud Run runtime service account must be allowed
+to create/read objects in `GCS_BUCKET_NAME`. If the backend uses signed URLs,
+the same service account also needs `iam.serviceAccounts.signBlob` via
+`roles/iam.serviceAccountTokenCreator`.
 
 ---
 
@@ -41,6 +47,8 @@ workflow handles the translation:
 | `AES_ENCRYPTION_KEY`          |      ✅      |         ✅         | via `--set-secrets`      |           |             | AES-256 key for encryption at rest.                                                       |
 | `GCS_BUCKET_NAME`             |      ✅      |                    | ✅                       |           |     ✅      | Google Cloud Storage bucket for document uploads.                                         |
 | `GCS_PROJECT_ID`              |      ✅      |                    | ✅ from `GCP_PROJECT_ID` |           |             | GCP project ID injected into the app under the name `GCS_PROJECT_ID`.                     |
+| `FILE_STORAGE_DRIVER`         |      ✅      |                    | ✅ `=gcs`                |           |             | Storage backend selector. Use `local` for dev/test and `gcs` for Cloud Run.               |
+| `LOCAL_UPLOAD_DIR`            |      ✅      |                    |                          |           |             | Local-only upload directory used only when `FILE_STORAGE_DRIVER=local`.                   |
 | `GEMINI_API_KEY`              |      ✅      |         ✅         | via `--set-secrets`      |           |             | API key for Google Gemini features.                                                       |
 | `MCP_API_KEY`                 |      ✅      |         ✅         | via `--set-secrets`      |           |             | Static API key for MCP authentication.                                                    |
 | `SENTRY_DSN`                  |      ✅      |         ✅         | via `--set-secrets`      |           |             | Sentry DSN for backend error reporting.                                                   |
@@ -170,6 +178,7 @@ gh variable set FIREBASE_PROJECT_ID --body "doc-classifier-app" --repo "$REPO"
 The backend deploy currently injects these as `env_vars`:
 
 - `NODE_ENV=production`
+- `FILE_STORAGE_DRIVER=gcs`
 - `GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}`
 - `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}`
 - `OTEL_SERVICE_NAME=doc-classifier-app-backend`

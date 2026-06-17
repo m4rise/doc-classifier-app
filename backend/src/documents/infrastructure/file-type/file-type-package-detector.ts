@@ -63,5 +63,16 @@ function detectWithJestFallback(
     return { ext: 'heic', mime: 'image/heic' };
   }
 
+  if (
+    buffer.subarray(0, 4).toString('binary') === 'PK\u0003\u0004' &&
+    buffer.includes(Buffer.from('[Content_Types].xml')) &&
+    buffer.includes(Buffer.from('word/'))
+  ) {
+    return {
+      ext: 'docx',
+      mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    };
+  }
+
   return undefined;
 }

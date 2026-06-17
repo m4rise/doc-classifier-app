@@ -1,4 +1,4 @@
-import { rm } from 'fs/promises';
+import { rm, stat } from 'fs/promises';
 import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
@@ -62,6 +62,37 @@ function createHeicBuffer(): Buffer {
   ]);
 }
 
+function createPngBuffer(): Buffer {
+  return Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+}
+
+function createDocxBuffer(): Buffer {
+  return Buffer.concat([
+    createZipLocalHeader('[Content_Types].xml'),
+    createZipLocalHeader('_rels/.rels'),
+    createZipLocalHeader('word/document.xml'),
+  ]);
+}
+
+function createZipLocalHeader(fileName: string): Buffer {
+  const fileNameBuffer = Buffer.from(fileName, 'utf8');
+  const header = Buffer.alloc(30);
+
+  header.writeUInt32LE(0x04034b50, 0);
+  header.writeUInt16LE(20, 4);
+  header.writeUInt16LE(0, 6);
+  header.writeUInt16LE(0, 8);
+  header.writeUInt16LE(0, 10);
+  header.writeUInt16LE(0, 12);
+  header.writeUInt32LE(0, 14);
+  header.writeUInt32LE(0, 18);
+  header.writeUInt32LE(0, 22);
+  header.writeUInt16LE(fileNameBuffer.length, 26);
+  header.writeUInt16LE(0, 28);
+
+  return Buffer.concat([header, fileNameBuffer]);
+}
+
 async function registerAndLogin(
   app: NestExpressApplication,
   email: string,
@@ -95,12 +126,14 @@ async function registerAndLogin(
 }
 
 describe('DocumentsController integration', () => {
+  const originalFileStorageDriver = process.env.FILE_STORAGE_DRIVER;
   const originalLocalUploadDir = process.env.LOCAL_UPLOAD_DIR;
   const uploadDir = join(process.cwd(), 'uploads', 'jest-documents-upload');
   let app: NestExpressApplication;
   let prisma: PrismaService;
 
   beforeAll(async () => {
+    process.env.FILE_STORAGE_DRIVER = 'local';
     process.env.LOCAL_UPLOAD_DIR = uploadDir;
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -131,6 +164,12 @@ describe('DocumentsController integration', () => {
       delete process.env.LOCAL_UPLOAD_DIR;
     } else {
       process.env.LOCAL_UPLOAD_DIR = originalLocalUploadDir;
+    }
+
+    if (originalFileStorageDriver === undefined) {
+      delete process.env.FILE_STORAGE_DRIVER;
+    } else {
+      process.env.FILE_STORAGE_DRIVER = originalFileStorageDriver;
     }
   });
 
@@ -171,7 +210,44 @@ describe('DocumentsController integration', () => {
     });
     expect(persistedDocument?.storageKey).toMatch(uuidPattern);
     expect(persistedDocument?.storageKey).not.toBe('invoice.pdf');
+    await expect(
+      stat(join(uploadDir, persistedDocument?.storageKey ?? 'missing')),
+    ).resolves.toMatchObject({
+      size: pdfBuffer.length,
+    });
   });
+
+  it.each([
+    ['PNG', 'diagram.png', 'image/png', createPngBuffer()],
+    [
+      'DOCX',
+      'contract.docx',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      createDocxBuffer(),
+    ],
+  ])(
+    'POST /api/v1/documents/upload accepts supported %s files',
+    async (_label, filename, expectedMimeType, buffer) => {
+      const email = `document-supported.${Date.now()}-${filename}@example.com`;
+      const { accessToken } = await registerAndLogin(app, email);
+
+      await request(app.getHttpServer())
+        .post('/api/v1/documents/upload')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .attach('file', buffer, {
+          filename,
+          contentType: expectedMimeType,
+        })
+        .expect(202)
+        .expect((res: HttpResponseBody) => {
+          const body = res.body as UploadDocumentResponseBody;
+          expect(body.status).toBe('PENDING');
+          expect(body.originalName).toBe(filename);
+          expect(body.mimeType).toBe(expectedMimeType);
+          expect(body.sizeBytes).toBe(buffer.length);
+        });
+    },
+  );
 
   it('POST /api/v1/documents/upload returns 415 for mismatched extension and magic bytes', async () => {
     const email = `document-mismatch.${Date.now()}@example.com`;
