@@ -11,6 +11,7 @@ dist/
 backend/dist/
 frontend/dist/
 coverage/
+backend/uploads/
 
 # Env files
 .env
