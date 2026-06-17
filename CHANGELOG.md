@@ -1,3 +1,9 @@
+## [1.9.0](https://github.com/m4rise/doc-classifier-app/compare/v1.8.0...v1.9.0) (2026-06-17)
+
+### Features
+
+* **documents:** add document and processing result schema ([#102](https://github.com/m4rise/doc-classifier-app/issues/102)) ([197d9d0](https://github.com/m4rise/doc-classifier-app/commit/197d9d049552d1a377127b4464f1f4c6c10236c2))
+
 ## [1.8.0](https://github.com/m4rise/doc-classifier-app/compare/v1.7.0...v1.8.0) (2026-06-16)
 
 ### Features
