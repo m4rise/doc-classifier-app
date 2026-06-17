@@ -30,6 +30,13 @@ enum Role {
   ADMIN
 }
 
+enum DocumentStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
 // ---------------------------------------------------------------------------
 // User — Epic 1 / Story 1.3 (bootstrap)
 // Relations (documents, refreshTokens, consents) added in Epic 2 & 3.
@@ -44,6 +51,7 @@ model User {
   updatedAt      DateTime        @updatedAt
   refreshTokens  RefreshToken[]
   consentRecords ConsentRecord[]
+  documents      Document[]
 
   @@map("users")
 }
@@ -70,4 +78,36 @@ model ConsentRecord {
   ipAddress  String?
 
   @@map("consent_records")
+}
+
+model Document {
+  id               String            @id @default(uuid())
+  userId           String
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalName     String
+  mimeType         String
+  sizeBytes        Int
+  storageKey       String            @unique @default(uuid())
+  status           DocumentStatus    @default(PENDING)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  processingResult ProcessingResult?
+
+  @@index([userId])
+  @@map("documents")
+}
+
+model ProcessingResult {
+  id              String   @id @default(uuid())
+  documentId      String   @unique
+  document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  extractedText   String
+  classification  String
+  summary         String
+  confidenceScore Float
+  language        String
+  errorMessage    String?
+  processedAt     DateTime @default(now())
+
+  @@map("processing_results")
 }
