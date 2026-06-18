@@ -66,8 +66,8 @@ the same service account also needs `iam.serviceAccounts.signBlob` via
 | `THROTTLE_AUTH_LIMIT`         |      ✅      |                    | ✅ `=10`                 |           |             | Maximum login attempts per IP per auth window.                                            |
 | `THROTTLE_REGISTER_TTL`       |      ✅      |                    | ✅ `=60`                 |           |             | Register rate-limit window in seconds.                                                    |
 | `THROTTLE_REGISTER_LIMIT`     |      ✅      |                    | ✅ `=5`                  |           |             | Maximum register attempts per IP per register window.                                     |
-| `THROTTLE_UPLOAD_TTL`         |      ✅      |                    | ✅ `=60`                 |           |             | Upload rate-limit window in seconds for the future upload endpoint.                       |
-| `THROTTLE_UPLOAD_LIMIT`       |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload attempts per user/IP per upload window for the future upload endpoint.     |
+| `THROTTLE_UPLOAD_TTL`         |      ✅      |                    | ✅ `=60`                 |           |             | Upload rate-limit window in seconds.                                                      |
+| `THROTTLE_UPLOAD_LIMIT`       |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload attempts per user/IP per upload window.                                    |
 | `CONFIDENCE_THRESHOLD`        |      ✅      |                    | ✅ `=0.7`                |           |             | Minimum AI confidence score for auto-validation.                                          |
 | `FILE_SIZE_LIMIT_MB`          |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload file size in MB.                                                           |
 | `TOS_VERSION`                 |      ✅      |                    | ✅ `=1.0`                |           |             | Current Terms of Service version required at registration.                                |
@@ -175,14 +175,14 @@ gh variable set FIREBASE_PROJECT_ID --body "doc-classifier-app" --repo "$REPO"
 
 ## 4. Cloud Run non-sensitive config
 
-The backend deploy currently injects these as `env_vars`:
+The backend deploy injects these as `env_vars` with `env_vars_update_strategy: overwrite`:
 
 - `NODE_ENV=production`
 - `FILE_STORAGE_DRIVER=gcs`
 - `GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}`
 - `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}`
 - `OTEL_SERVICE_NAME=doc-classifier-app-backend`
-- `OTEL_RESOURCE_ATTRIBUTES=service.namespace=production,deployment.environment=production`
+- `OTEL_RESOURCE_ATTRIBUTES="service.namespace=production,deployment.environment=production"`
 - `OTEL_TRACES_EXPORTER=otlp`
 - `OTEL_METRICS_EXPORTER=otlp`
 - `OTEL_LOGS_EXPORTER=otlp`
