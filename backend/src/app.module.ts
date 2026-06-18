@@ -5,6 +5,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { DocumentsModule } from './documents/documents.module';
 import { HealthModule } from './health/health.module';
 import { ObservabilityModule } from './infrastructure/observability/observability.module';
 import { PrismaModule } from './shared/infrastructure/database/prisma.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
       },
     }),
     AuthModule,
+    DocumentsModule,
     UsersModule,
     HealthModule,
   ],

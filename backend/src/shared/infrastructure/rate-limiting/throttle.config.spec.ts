@@ -108,4 +108,29 @@ describe('throttle config', () => {
       'ip:198.51.100.11',
     );
   });
+
+  it('tracks upload throttling by bearer JWT subject when req.user is not populated yet', () => {
+    const options = createUploadThrottleOptions();
+    const getTracker = options.default.getTracker;
+    const token = createUnsignedJwt({ sub: 'user-from-token' });
+
+    expect(
+      getTracker?.(
+        {
+          headers: { authorization: `Bearer ${token}` },
+          ip: '198.51.100.16',
+        },
+        {} as ExecutionContext,
+      ),
+    ).toBe('user:user-from-token');
+  });
 });
+
+function createUnsignedJwt(payload: Record<string, unknown>): string {
+  const header = Buffer.from(
+    JSON.stringify({ alg: 'none', typ: 'JWT' }),
+  ).toString('base64url');
+  const body = Buffer.from(JSON.stringify(payload)).toString('base64url');
+
+  return `${header}.${body}.signature`;
+}

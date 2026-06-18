@@ -25,6 +25,7 @@
     "db:studio": "prisma studio"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.21.0",
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/jwt": "^11.0.2",
@@ -45,6 +46,7 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
+    "file-type": "^21.3.4",
     "nestjs-pino": "^4.6.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
@@ -83,5 +85,8 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.20.0"
+  },
+  "overrides": {
+    "multer": "2.2.0"
   }
 }

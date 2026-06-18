@@ -31,6 +31,9 @@ This runbook tracks provider setup for `doc-classifier-app`.
   - [x] Storage Admin
   - [x] Artifact Registry Writer
   - [x] Secret Manager Accessor
+- [ ] Cloud Run runtime service account IAM verified:
+  - [ ] Storage Object User on `doc-classifier-documents`
+  - [ ] Service Account Token Creator for signed URLs (`iam.serviceAccounts.signBlob`)
 - [x] Workload Identity Federation configured
 
 ## 2. Neon.tech
@@ -81,6 +84,7 @@ This runbook tracks provider setup for `doc-classifier-app`.
 
 - `GCS_BUCKET_NAME`
 - `GCS_PROJECT_ID`
+- `FILE_STORAGE_DRIVER`
 - `OTEL_SERVICE_NAME`
 - `OTEL_RESOURCE_ATTRIBUTES`
 - `OTEL_TRACES_EXPORTER`
@@ -90,6 +94,8 @@ This runbook tracks provider setup for `doc-classifier-app`.
 - `THROTTLE_LIMIT`
 - `THROTTLE_AUTH_TTL`
 - `THROTTLE_AUTH_LIMIT`
+- `THROTTLE_AUTH_SESSION_TTL`
+- `THROTTLE_AUTH_SESSION_LIMIT`
 - `THROTTLE_REGISTER_TTL`
 - `THROTTLE_REGISTER_LIMIT`
 - `THROTTLE_UPLOAD_TTL`

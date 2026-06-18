@@ -128,8 +128,25 @@ function secondsToMilliseconds(seconds: number): number {
 }
 
 function getAuthenticatedUserOrIpTracker(req: Record<string, unknown>): string {
-  const user = req.user;
+  const authenticatedUserTracker = getAuthenticatedUserTracker(req);
 
+  if (authenticatedUserTracker) {
+    return authenticatedUserTracker;
+  }
+
+  const bearerJwtSubjectTracker = getBearerJwtSubjectTracker(req);
+
+  if (bearerJwtSubjectTracker) {
+    return bearerJwtSubjectTracker;
+  }
+
+  return getIpTracker(req);
+}
+
+function getAuthenticatedUserTracker(
+  req: Record<string, unknown>,
+): string | null {
+  const user = req.user;
   if (isRecord(user)) {
     const userId = user.userId;
 
@@ -138,7 +155,74 @@ function getAuthenticatedUserOrIpTracker(req: Record<string, unknown>): string {
     }
   }
 
-  return getIpTracker(req);
+  return null;
+}
+
+function getBearerJwtSubjectTracker(
+  req: Record<string, unknown>,
+): string | null {
+  const authorizationHeader = getHeaderValue(req, 'authorization');
+
+  if (!authorizationHeader) {
+    return null;
+  }
+
+  const match = /^Bearer\s+(.+)$/i.exec(authorizationHeader.trim());
+  const token = match?.[1];
+
+  if (!token) {
+    return null;
+  }
+
+  const payload = decodeJwtPayload(token);
+
+  if (isRecord(payload) && typeof payload.sub === 'string') {
+    const subject = payload.sub.trim();
+
+    if (subject.length > 0) {
+      return `user:${subject}`;
+    }
+  }
+
+  return null;
+}
+
+function getHeaderValue(
+  req: Record<string, unknown>,
+  headerName: string,
+): string | null {
+  const headers = req.headers;
+
+  if (!isRecord(headers)) {
+    return null;
+  }
+
+  const value = headers[headerName] ?? headers[headerName.toLowerCase()];
+
+  if (typeof value === 'string') {
+    return value;
+  }
+
+  if (Array.isArray(value) && typeof value[0] === 'string') {
+    return value[0];
+  }
+
+  return null;
+}
+
+function decodeJwtPayload(token: string): unknown {
+  const [, payload] = token.split('.');
+
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const json = Buffer.from(payload, 'base64url').toString('utf8');
+    return JSON.parse(json) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 function getIpTracker(req: Record<string, unknown>): string {

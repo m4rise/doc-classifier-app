@@ -16,6 +16,12 @@ workflow handles the translation:
 | `GCS_BUCKET_NAME`            | `vars.GCS_BUCKET_NAME`      | `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}` | Same name in both                  |
 | `DATABASE_URL`               | GCP Secret Manager          | `DATABASE_URL=DATABASE_URL:latest`            | prod DB, injected at runtime       |
 | `DATABASE_URL` (migrations)  | `secrets.DATABASE_URL_PROD` | env var in prisma migrate step                | GH secret, used only by deploy job |
+| `FILE_STORAGE_DRIVER`        | literal deploy config       | `FILE_STORAGE_DRIVER=gcs`                     | Cloud Run uses GCS storage         |
+
+Runtime IAM prerequisite: the Cloud Run runtime service account must be allowed
+to create/read objects in `GCS_BUCKET_NAME`. If the backend uses signed URLs,
+the same service account also needs `iam.serviceAccounts.signBlob` via
+`roles/iam.serviceAccountTokenCreator`.
 
 ---
 
@@ -41,6 +47,8 @@ workflow handles the translation:
 | `AES_ENCRYPTION_KEY`          |      ✅      |         ✅         | via `--set-secrets`      |           |             | AES-256 key for encryption at rest.                                                       |
 | `GCS_BUCKET_NAME`             |      ✅      |                    | ✅                       |           |     ✅      | Google Cloud Storage bucket for document uploads.                                         |
 | `GCS_PROJECT_ID`              |      ✅      |                    | ✅ from `GCP_PROJECT_ID` |           |             | GCP project ID injected into the app under the name `GCS_PROJECT_ID`.                     |
+| `FILE_STORAGE_DRIVER`         |      ✅      |                    | ✅ `=gcs`                |           |             | Storage backend selector. Use `local` for dev/test and `gcs` for Cloud Run.               |
+| `LOCAL_UPLOAD_DIR`            |      ✅      |                    |                          |           |             | Local-only upload directory used only when `FILE_STORAGE_DRIVER=local`.                   |
 | `GEMINI_API_KEY`              |      ✅      |         ✅         | via `--set-secrets`      |           |             | API key for Google Gemini features.                                                       |
 | `MCP_API_KEY`                 |      ✅      |         ✅         | via `--set-secrets`      |           |             | Static API key for MCP authentication.                                                    |
 | `SENTRY_DSN`                  |      ✅      |         ✅         | via `--set-secrets`      |           |             | Sentry DSN for backend error reporting.                                                   |
@@ -56,10 +64,12 @@ workflow handles the translation:
 | `THROTTLE_LIMIT`              |      ✅      |                    | ✅ `=100`                |           |             | Maximum requests per IP per window.                                                       |
 | `THROTTLE_AUTH_TTL`           |      ✅      |                    | ✅ `=60`                 |           |             | Login rate-limit window in seconds.                                                       |
 | `THROTTLE_AUTH_LIMIT`         |      ✅      |                    | ✅ `=10`                 |           |             | Maximum login attempts per IP per auth window.                                            |
+| `THROTTLE_AUTH_SESSION_TTL`   |      ✅      |                    | ✅ `=60`                 |           |             | Authenticated session rate-limit window in seconds.                                       |
+| `THROTTLE_AUTH_SESSION_LIMIT` |      ✅      |                    | ✅ `=60`                 |           |             | Maximum auth session requests per user/IP per window.                                     |
 | `THROTTLE_REGISTER_TTL`       |      ✅      |                    | ✅ `=60`                 |           |             | Register rate-limit window in seconds.                                                    |
 | `THROTTLE_REGISTER_LIMIT`     |      ✅      |                    | ✅ `=5`                  |           |             | Maximum register attempts per IP per register window.                                     |
-| `THROTTLE_UPLOAD_TTL`         |      ✅      |                    | ✅ `=60`                 |           |             | Upload rate-limit window in seconds for the future upload endpoint.                       |
-| `THROTTLE_UPLOAD_LIMIT`       |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload attempts per user/IP per upload window for the future upload endpoint.     |
+| `THROTTLE_UPLOAD_TTL`         |      ✅      |                    | ✅ `=60`                 |           |             | Upload rate-limit window in seconds.                                                      |
+| `THROTTLE_UPLOAD_LIMIT`       |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload attempts per user/IP per upload window.                                    |
 | `CONFIDENCE_THRESHOLD`        |      ✅      |                    | ✅ `=0.7`                |           |             | Minimum AI confidence score for auto-validation.                                          |
 | `FILE_SIZE_LIMIT_MB`          |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload file size in MB.                                                           |
 | `TOS_VERSION`                 |      ✅      |                    | ✅ `=1.0`                |           |             | Current Terms of Service version required at registration.                                |
@@ -167,13 +177,14 @@ gh variable set FIREBASE_PROJECT_ID --body "doc-classifier-app" --repo "$REPO"
 
 ## 4. Cloud Run non-sensitive config
 
-The backend deploy currently injects these as `env_vars`:
+The backend deploy injects these as `env_vars` with `env_vars_update_strategy: overwrite`:
 
 - `NODE_ENV=production`
+- `FILE_STORAGE_DRIVER=gcs`
 - `GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}`
 - `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}`
 - `OTEL_SERVICE_NAME=doc-classifier-app-backend`
-- `OTEL_RESOURCE_ATTRIBUTES=service.namespace=production,deployment.environment=production`
+- `OTEL_RESOURCE_ATTRIBUTES="service.namespace=production,deployment.environment=production"`
 - `OTEL_TRACES_EXPORTER=otlp`
 - `OTEL_METRICS_EXPORTER=otlp`
 - `OTEL_LOGS_EXPORTER=otlp`
@@ -181,6 +192,8 @@ The backend deploy currently injects these as `env_vars`:
 - `THROTTLE_LIMIT=100`
 - `THROTTLE_AUTH_TTL=60`
 - `THROTTLE_AUTH_LIMIT=10`
+- `THROTTLE_AUTH_SESSION_TTL=60`
+- `THROTTLE_AUTH_SESSION_LIMIT=60`
 - `THROTTLE_REGISTER_TTL=60`
 - `THROTTLE_REGISTER_LIMIT=5`
 - `THROTTLE_UPLOAD_TTL=60`
