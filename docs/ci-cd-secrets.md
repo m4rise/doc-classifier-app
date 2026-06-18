@@ -64,6 +64,8 @@ the same service account also needs `iam.serviceAccounts.signBlob` via
 | `THROTTLE_LIMIT`              |      ✅      |                    | ✅ `=100`                |           |             | Maximum requests per IP per window.                                                       |
 | `THROTTLE_AUTH_TTL`           |      ✅      |                    | ✅ `=60`                 |           |             | Login rate-limit window in seconds.                                                       |
 | `THROTTLE_AUTH_LIMIT`         |      ✅      |                    | ✅ `=10`                 |           |             | Maximum login attempts per IP per auth window.                                            |
+| `THROTTLE_AUTH_SESSION_TTL`   |      ✅      |                    | ✅ `=60`                 |           |             | Authenticated session rate-limit window in seconds.                                       |
+| `THROTTLE_AUTH_SESSION_LIMIT` |      ✅      |                    | ✅ `=60`                 |           |             | Maximum auth session requests per user/IP per window.                                     |
 | `THROTTLE_REGISTER_TTL`       |      ✅      |                    | ✅ `=60`                 |           |             | Register rate-limit window in seconds.                                                    |
 | `THROTTLE_REGISTER_LIMIT`     |      ✅      |                    | ✅ `=5`                  |           |             | Maximum register attempts per IP per register window.                                     |
 | `THROTTLE_UPLOAD_TTL`         |      ✅      |                    | ✅ `=60`                 |           |             | Upload rate-limit window in seconds.                                                      |
@@ -190,6 +192,8 @@ The backend deploy injects these as `env_vars` with `env_vars_update_strategy: o
 - `THROTTLE_LIMIT=100`
 - `THROTTLE_AUTH_TTL=60`
 - `THROTTLE_AUTH_LIMIT=10`
+- `THROTTLE_AUTH_SESSION_TTL=60`
+- `THROTTLE_AUTH_SESSION_LIMIT=60`
 - `THROTTLE_REGISTER_TTL=60`
 - `THROTTLE_REGISTER_LIMIT=5`
 - `THROTTLE_UPLOAD_TTL=60`
