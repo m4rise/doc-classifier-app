@@ -85,5 +85,8 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^6.0.0",
     "typescript-eslint": "^8.20.0"
+  },
+  "overrides": {
+    "multer": "2.2.0"
   }
 }
