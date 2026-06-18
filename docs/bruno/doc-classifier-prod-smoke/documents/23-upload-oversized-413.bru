@@ -1,0 +1,33 @@
+meta {
+  name: 23 Upload Oversized 413
+  type: http
+  seq: 23
+  tags: [
+    documents
+    error
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/documents/upload
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  file: @file(fixtures/large.pdf)
+}
+
+tests {
+  test("returns 413 Payload Too Large", function () {
+    expect(res.status).to.equal(413);
+  });
+
+  test("reports file too large", function () {
+    expect(res.body.message).to.equal("File too large");
+  });
+}

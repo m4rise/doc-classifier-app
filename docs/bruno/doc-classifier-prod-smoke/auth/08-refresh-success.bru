@@ -1,0 +1,38 @@
+meta {
+  name: 08 Refresh Success
+  type: http
+  seq: 8
+  tags: [
+    smoke
+    auth
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/refresh
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{refreshToken}}
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("newAccessToken", res.body.accessToken);
+    bru.setVar("newRefreshToken", res.body.refreshToken);
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("rotates refresh token", function () {
+    expect(res.body.refreshToken).to.be.a("string");
+    expect(res.body.refreshToken).to.not.equal(bru.getVar("refreshToken"));
+    expect(res.body.expiresIn).to.equal(900);
+  });
+}

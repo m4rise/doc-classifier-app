@@ -1,0 +1,43 @@
+meta {
+  name: 15 Users List ADMIN Manual
+  type: http
+  seq: 15
+  tags: [
+    manual
+    users
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{adminAccessToken}}
+}
+
+tests {
+  test("returns 200 for an ADMIN token, or 401 when adminAccessToken is empty", function () {
+    const adminToken = bru.getEnvVar("adminAccessToken");
+
+    if (!adminToken || !adminToken.trim()) {
+      expect(res.status).to.equal(401);
+      expect(res.body.message).to.equal("Unauthorized");
+      return;
+    }
+
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns a list when adminAccessToken is configured", function () {
+    const adminToken = bru.getEnvVar("adminAccessToken");
+
+    if (!adminToken || !adminToken.trim()) {
+      return;
+    }
+
+    expect(res.body).to.be.an("array");
+  });
+}

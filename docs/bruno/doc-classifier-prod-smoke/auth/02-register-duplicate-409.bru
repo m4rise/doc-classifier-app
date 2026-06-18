@@ -1,0 +1,47 @@
+meta {
+  name: 02 Register Duplicate 409
+  type: http
+  seq: 2
+  tags: [
+    auth
+    error
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  const email = bru.getVar("smokeEmail");
+  if (!email) {
+    throw new Error("Run 01 Register Success first.");
+  }
+
+  req.setBody(JSON.stringify({
+    email,
+    password: bru.getVar("password"),
+    tosAccepted: true,
+    tosVersion: bru.getVar("tosVersion") || "1.0"
+  }));
+}
+
+tests {
+  test("returns 409 Conflict", function () {
+    expect(res.status).to.equal(409);
+  });
+
+  test("reports duplicate email", function () {
+    expect(res.body.message).to.equal("Email already in use");
+  });
+}

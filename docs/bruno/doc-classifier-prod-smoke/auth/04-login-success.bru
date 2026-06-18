@@ -1,0 +1,54 @@
+meta {
+  name: 04 Login Success
+  type: http
+  seq: 4
+  tags: [
+    smoke
+    auth
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  const email = bru.getVar("smokeEmail");
+  if (!email) {
+    throw new Error("Run 01 Register Success first.");
+  }
+
+  req.setBody(JSON.stringify({
+    email,
+    password: bru.getVar("password") || bru.getEnvVar("password")
+  }));
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setVar("accessToken", res.body.accessToken);
+    bru.setVar("refreshToken", res.body.refreshToken);
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns JWT tokens and access TTL", function () {
+    expect(res.body.accessToken.split(".")).to.have.length(3);
+    expect(res.body.refreshToken.split(".")).to.have.length(3);
+    expect(res.body.expiresIn).to.equal(900);
+  });
+}

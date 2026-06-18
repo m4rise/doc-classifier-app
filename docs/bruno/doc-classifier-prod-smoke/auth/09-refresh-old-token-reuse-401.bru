@@ -1,0 +1,29 @@
+meta {
+  name: 09 Refresh Old Token Reuse 401
+  type: http
+  seq: 9
+  tags: [
+    auth
+    error
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/refresh
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{refreshToken}}
+}
+
+tests {
+  test("returns 401 Unauthorized", function () {
+    expect(res.status).to.equal(401);
+  });
+
+  test("reports invalid refresh token", function () {
+    expect(res.body.message).to.equal("Invalid refresh token");
+  });
+}

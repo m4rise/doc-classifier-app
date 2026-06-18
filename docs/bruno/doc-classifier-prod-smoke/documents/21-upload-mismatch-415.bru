@@ -1,0 +1,33 @@
+meta {
+  name: 21 Upload Mismatch 415
+  type: http
+  seq: 21
+  tags: [
+    documents
+    error
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/documents/upload
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  file: @file(fixtures/mismatch.pdf)
+}
+
+tests {
+  test("returns 415 Unsupported Media Type", function () {
+    expect(res.status).to.equal(415);
+  });
+
+  test("reports invalid file type", function () {
+    expect(res.body.message).to.equal("Invalid file type");
+  });
+}

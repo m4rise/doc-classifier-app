@@ -1,0 +1,45 @@
+meta {
+  name: 13 Users Me Update Success
+  type: http
+  seq: 13
+  tags: [
+    users
+  ]
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/users/me
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+  Authorization: Bearer {{accessToken}}
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  const updatedEmail = `updated+${Date.now()}@example.com`;
+  bru.setVar("updatedEmail", updatedEmail);
+  req.setBody(JSON.stringify({ email: updatedEmail }));
+}
+
+script:post-response {
+  if (res.status === 200 && res.body?.email) {
+    bru.setVar("smokeEmail", res.body.email);
+  }
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("updates email", function () {
+    expect(res.body.email).to.equal(bru.getVar("updatedEmail"));
+  });
+}

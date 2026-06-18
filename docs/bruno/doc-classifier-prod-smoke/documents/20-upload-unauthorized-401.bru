@@ -1,0 +1,25 @@
+meta {
+  name: 20 Upload Unauthorized 401
+  type: http
+  seq: 20
+  tags: [
+    documents
+    error
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/documents/upload
+  body: multipartForm
+  auth: none
+}
+
+body:multipart-form {
+  file: @file(fixtures/smoke.pdf)
+}
+
+tests {
+  test("returns 401 Unauthorized", function () {
+    expect(res.status).to.equal(401);
+  });
+}

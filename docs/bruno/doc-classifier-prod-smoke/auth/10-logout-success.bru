@@ -1,0 +1,25 @@
+meta {
+  name: 10 Logout Success
+  type: http
+  seq: 10
+  tags: [
+    smoke
+    auth
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/logout
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.status).to.equal(200);
+  });
+}

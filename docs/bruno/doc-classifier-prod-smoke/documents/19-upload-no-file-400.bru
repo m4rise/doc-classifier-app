@@ -1,0 +1,29 @@
+meta {
+  name: 19 Upload No File 400
+  type: http
+  seq: 19
+  tags: [
+    documents
+    error
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/documents/upload
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+tests {
+  test("returns 400 Bad Request", function () {
+    expect(res.status).to.equal(400);
+  });
+
+  test("reports missing file", function () {
+    expect(res.body.message).to.equal("File is required");
+  });
+}
