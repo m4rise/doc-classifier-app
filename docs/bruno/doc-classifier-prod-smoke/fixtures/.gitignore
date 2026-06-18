@@ -1,0 +1,6 @@
+*.pdf
+*.png
+*.heic
+*.docx
+!README.md
+!generate-fixtures.sh

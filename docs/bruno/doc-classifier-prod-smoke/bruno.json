@@ -1,0 +1,8 @@
+{
+  "version": "1",
+  "name": "doc-classifier prod smoke",
+  "type": "collection",
+  "scripts": {
+    "flow": "sequential"
+  }
+}

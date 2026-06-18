@@ -1,0 +1,35 @@
+meta {
+  name: 17 Upload PNG Success
+  type: http
+  seq: 17
+  tags: [
+    smoke
+    documents
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/documents/upload
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  file: @file(fixtures/smoke.png)
+}
+
+tests {
+  test("returns 202 Accepted", function () {
+    expect(res.status).to.equal(202);
+  });
+
+  test("creates PENDING PNG document", function () {
+    expect(res.body.status).to.equal("PENDING");
+    expect(res.body.originalName).to.equal("smoke.png");
+    expect(res.body.mimeType).to.equal("image/png");
+  });
+}

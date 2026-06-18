@@ -1,0 +1,25 @@
+meta {
+  name: 07 Auth Me Invalid Token 401
+  type: http
+  seq: 7
+  tags: [
+    auth
+    error
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer invalid-token
+}
+
+tests {
+  test("returns 401 Unauthorized", function () {
+    expect(res.status).to.equal(401);
+  });
+}

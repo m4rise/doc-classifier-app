@@ -1,0 +1,30 @@
+meta {
+  name: 12 Users Me Success
+  type: http
+  seq: 12
+  tags: [
+    smoke
+    users
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users/me
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("does not expose password hash", function () {
+    expect(res.body.email).to.equal(bru.getVar("smokeEmail"));
+    expect(res.body).to.not.have.property("passwordHash");
+  });
+}

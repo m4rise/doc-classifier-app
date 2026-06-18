@@ -1,0 +1,54 @@
+meta {
+  name: 01 Register Success
+  type: http
+  seq: 1
+  tags: [
+    smoke
+    auth
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/auth/register
+  body: json
+  auth: none
+}
+
+headers {
+  content-type: application/json
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  const runId = Date.now().toString();
+  const email = `smoke+${runId}@example.com`;
+  const password = bru.getEnvVar("password") || "super-secure-password";
+  const tosVersion = bru.getEnvVar("tosVersion") || "1.0";
+
+  bru.setVar("smokeRunId", runId);
+  bru.setVar("smokeEmail", email);
+  bru.setVar("password", password);
+  bru.setVar("tosVersion", tosVersion);
+
+  req.setBody(JSON.stringify({
+    email,
+    password,
+    tosAccepted: true,
+    tosVersion
+  }));
+}
+
+tests {
+  test("returns 201 Created", function () {
+    expect(res.status).to.equal(201);
+  });
+
+  test("returns public user fields only", function () {
+    expect(res.body.email).to.equal(bru.getVar("smokeEmail"));
+    expect(res.body.role).to.equal("USER");
+    expect(res.body).to.not.have.property("passwordHash");
+  });
+}

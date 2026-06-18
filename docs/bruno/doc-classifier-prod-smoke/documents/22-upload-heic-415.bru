@@ -1,0 +1,29 @@
+meta {
+  name: 22 Upload HEIC 415
+  type: http
+  seq: 22
+  tags: [
+    documents
+    error
+  ]
+}
+
+post {
+  url: {{baseUrl}}/api/v1/documents/upload
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+body:multipart-form {
+  file: @file(fixtures/photo.heic)
+}
+
+tests {
+  test("returns 415 Unsupported Media Type", function () {
+    expect(res.status).to.equal(415);
+  });
+}

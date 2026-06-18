@@ -1,0 +1,25 @@
+meta {
+  name: 14 Users List USER 403
+  type: http
+  seq: 14
+  tags: [
+    users
+    error
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/users
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+tests {
+  test("returns 403 Forbidden for regular USER", function () {
+    expect(res.status).to.equal(403);
+  });
+}

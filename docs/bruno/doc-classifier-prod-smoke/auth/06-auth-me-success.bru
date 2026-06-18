@@ -1,0 +1,30 @@
+meta {
+  name: 06 Auth Me Success
+  type: http
+  seq: 6
+  tags: [
+    smoke
+    auth
+  ]
+}
+
+get {
+  url: {{baseUrl}}/api/v1/auth/me
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{accessToken}}
+}
+
+tests {
+  test("returns 200 OK", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("returns authenticated user payload", function () {
+    expect(res.body.email).to.equal(bru.getVar("smokeEmail"));
+    expect(res.body.role).to.equal("USER");
+  });
+}
