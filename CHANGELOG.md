@@ -1,3 +1,9 @@
+## [1.11.0](https://github.com/m4rise/doc-classifier-app/compare/v1.10.0...v1.11.0) (2026-06-18)
+
+### Features
+
+* **ai-pipeline:** add LLM provider contract and schema ([#104](https://github.com/m4rise/doc-classifier-app/issues/104)) ([06e0882](https://github.com/m4rise/doc-classifier-app/commit/06e08823f8cb268b770292e44f1091024dd68307))
+
 ## [1.10.0](https://github.com/m4rise/doc-classifier-app/compare/v1.9.0...v1.10.0) (2026-06-18)
 
 ### Features
