@@ -1,3 +1,9 @@
+## [1.10.0](https://github.com/m4rise/doc-classifier-app/compare/v1.9.0...v1.10.0) (2026-06-18)
+
+### Features
+
+* **documents:** file upload with magic bytes validation ([#103](https://github.com/m4rise/doc-classifier-app/issues/103)) ([2d64ee8](https://github.com/m4rise/doc-classifier-app/commit/2d64ee8ae4dcf388c7bc5bc0adc09943587984ef))
+
 ## [1.9.0](https://github.com/m4rise/doc-classifier-app/compare/v1.8.0...v1.9.0) (2026-06-17)
 
 ### Features
