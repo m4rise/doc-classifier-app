@@ -82,6 +82,16 @@ export default tseslint.config(
               message:
                 'Domain and application layers must stay framework-agnostic. Move NestJS, Prisma, and infrastructure imports to infrastructure/presentation.',
             },
+            {
+              group: [
+                '@google-ai/*',
+                '@google-cloud/*',
+                '@google/generative-ai',
+                '@google/generative-ai/*',
+              ],
+              message:
+                'Domain and application layers must stay provider-agnostic. Use ILlmProvider instead of importing Google or Gemini SDKs.',
+            },
           ],
         },
       ],
