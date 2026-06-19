@@ -5,6 +5,9 @@ working on the GitHub repository `doc-classifier-app`. It defines how GitHub
 issues, branches, commits, pull requests, CI, release automation, and BMAD
 back-sync fit together.
 
+For the detailed release train, staging, semantic-release, tag, and production
+deploy runbook, see [RELEASE_DEPLOY_FLOW.md](./RELEASE_DEPLOY_FLOW.md).
+
 ## 0. Non-Negotiable Principles
 
 - GitHub is the operational source of truth for active implementation work.
@@ -312,7 +315,8 @@ The pre-push label check:
 
 ### Pull Request CI
 
-`.github/workflows/ci.yml` runs on PRs to `main` and on pushes to `main`.
+`.github/workflows/ci.yml` runs on PRs to `main` and on application-relevant
+pushes to `main`.
 
 Current PR CI jobs:
 
@@ -325,31 +329,81 @@ Current PR CI jobs:
 
 The CI workflow does not currently run the root `npm run build` as a standalone
 PR job. The build remains required locally through `npm run check` and in the PR
-template testing checklist. The deploy workflow builds the frontend during
+template testing checklist. Deploy workflows build the frontend during
 deployment, and the security job builds the backend Docker image for scanning.
+
+Pushes to `main` skip CI when every changed file is documentation, generated
+release notes, GitHub issue/PR templates, GitHub skills, or other non-runtime
+metadata covered by `paths-ignore`. Pull request CI is intentionally not
+path-filtered so required PR checks do not remain pending for docs-only PRs.
 
 ### Release
 
-The `release` job in `.github/workflows/ci.yml` runs only when:
+`.github/workflows/release.yml` is manually dispatched from `main` when a
+release train is ready. This allows several merged stories or a whole epic to be
+published as one semantic release instead of releasing after each merge.
 
-- the event is a push to `main`;
-- `lint`, `test-unit`, `test-integration`, `test-e2e`, and `security` have
-  passed.
+The workflow:
 
-It installs root dependencies and runs `npx semantic-release`, using
-`RELEASE_TOKEN` to publish release artifacts, changelog/version updates, tags,
-and GitHub release notes according to semantic-release configuration.
+- verifies it was dispatched from `main`;
+- requires a successful `CI` workflow run for the exact current `main` SHA;
+- supports a `dry_run` input for release preview;
+- runs `npx semantic-release`, using `RELEASE_TOKEN` to publish release
+  artifacts, changelog updates, tags, and GitHub release notes.
 
-### Deploy
+The current semantic-release plugin set does not include
+`@semantic-release/npm`; the Git tag and GitHub Release are the authoritative
+version markers unless package version bumping is added later.
 
-`.github/workflows/deploy.yml` runs after the `CI` workflow completes
-successfully on `main`, or manually through `workflow_dispatch`.
+If the latest `main` SHA has no successful CI run, dispatch `CI` manually on
+`main`, wait for it to pass, then dispatch `Release` again.
+
+### Staging Deploy
+
+`.github/workflows/staging-deploy.yml` is the optional staging train. Automatic
+staging deploys run after successful push-based CI on `main` only when the
+repository variable `ENABLE_STAGING_DEPLOY` is set to `true`.
+
+The workflow detects whether the merged commit changed deployable backend or
+frontend files. Backend-only changes skip frontend deploy, frontend-only changes
+skip backend deploy, and docs-only changes do not reach this workflow because CI
+is skipped on `main`.
+
+Manual staging deploy is also available through `workflow_dispatch` with an
+explicit ref/tag/SHA and backend/frontend toggles.
+
+### Production Deploy
+
+`.github/workflows/deploy.yml` is the production deploy workflow. It runs when a
+GitHub Release is published, or manually through `workflow_dispatch` for an
+explicit ref/tag/SHA.
 
 It deploys:
 
 - backend to Cloud Run after dependency install, Prisma generate, migrations,
   Docker build/push, and Cloud Run deploy;
 - frontend to Firebase Hosting after dependency install and `npm run build`.
+
+Production jobs target the `production-backend` and `production-frontend`
+GitHub Environments. Configure environment reviewers, wait timers, or branch/tag
+rules in GitHub repository settings when production needs an approval gate.
+
+### Release Train Flow
+
+Use this flow when several stories or a full epic should ship together:
+
+1. Merge each story PR to `main` after normal PR CI and review.
+2. Let optional staging deploy the accumulated `main` train.
+3. Validate smoke checks and epic release criteria in GitHub.
+4. Dispatch `Release` from `main` with `dry_run=true` if release notes need a
+   preview.
+5. Dispatch `Release` from `main` with `dry_run=false` when ready.
+6. Let `Deploy Production` run from the published GitHub Release, or dispatch it
+   manually with the created release tag.
+
+See [RELEASE_DEPLOY_FLOW.md](./RELEASE_DEPLOY_FLOW.md) for examples, squash
+merge title rules, dry-run commands, manual deploy cases, staging setup, and
+troubleshooting.
 
 ## 8. BMAD Back-Sync
 
@@ -413,20 +467,21 @@ issue -> branch -> commits -> PR -> merge
 
 ## 11. Quick Reference
 
-| Step | Required | Reference |
-| --- | --- | --- |
-| Track selection | Always | Track A BMAD GitHub-first or Track B GitHub-only |
-| Issue | Always for human PRs | `story.md`, `feature_request.md`, or `bug_report.md` |
-| Branch | Always | `feature/DC-N-*`, `fix/DC-N-*`, `docs/DC-N-*`, `chore/DC-N-*` |
-| Commit | Always | Conventional Commits + `commitlint.config.cjs` |
-| PR | Always | `.github/PULL_REQUEST_TEMPLATE.md` |
-| Closing keyword | Always for human PRs | `Closes #N`, `Fixes #N`, or `Resolves #N` |
-| Labels | Required once PR exists | `.husky/check-pr-labels.js` |
-| Local check | Recommended before readiness | `npm run check` |
-| PR CI | Required before merge | `.github/workflows/ci.yml` |
-| Back-sync | Track A only | `.github/workflows/back-sync-specs.yml` |
-| Release | Automatic on `main` | semantic-release in `.github/workflows/ci.yml` |
-| Deploy | Automatic after successful CI on `main` | `.github/workflows/deploy.yml` |
+| Step              | Required                     | Reference                                                     |
+| ----------------- | ---------------------------- | ------------------------------------------------------------- |
+| Track selection   | Always                       | Track A BMAD GitHub-first or Track B GitHub-only              |
+| Issue             | Always for human PRs         | `story.md`, `feature_request.md`, or `bug_report.md`          |
+| Branch            | Always                       | `feature/DC-N-*`, `fix/DC-N-*`, `docs/DC-N-*`, `chore/DC-N-*` |
+| Commit            | Always                       | Conventional Commits + `commitlint.config.cjs`                |
+| PR                | Always                       | `.github/PULL_REQUEST_TEMPLATE.md`                            |
+| Closing keyword   | Always for human PRs         | `Closes #N`, `Fixes #N`, or `Resolves #N`                     |
+| Labels            | Required once PR exists      | `.husky/check-pr-labels.js`                                   |
+| Local check       | Recommended before readiness | `npm run check`                                               |
+| PR CI             | Required before merge        | `.github/workflows/ci.yml`                                    |
+| Back-sync         | Track A only                 | `.github/workflows/back-sync-specs.yml`                       |
+| Staging deploy    | Optional after CI on `main`  | `.github/workflows/staging-deploy.yml`                        |
+| Release           | Manual release train         | `.github/workflows/release.yml`                               |
+| Production deploy | Release-published or manual  | `.github/workflows/deploy.yml`                                |
 
 ## 12. Example Flows
 
@@ -590,6 +645,7 @@ manual BMAD documentation update.
 - [.github/workflows/pr-traceability-guard.yml](../.github/workflows/pr-traceability-guard.yml)
 - [.github/workflows/back-sync-specs.yml](../.github/workflows/back-sync-specs.yml)
 - [.github/workflows/ci.yml](../.github/workflows/ci.yml)
+- [docs/RELEASE_DEPLOY_FLOW.md](./RELEASE_DEPLOY_FLOW.md)
 - [.github/workflows/deploy.yml](../.github/workflows/deploy.yml)
 - [.github/skills/bmad-github-dev-story/SKILL.md](../.github/skills/bmad-github-dev-story/SKILL.md)
 - [.github/skills/monorepo-github-flow/SKILL.md](../.github/skills/monorepo-github-flow/SKILL.md)

@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run semantic-release without publishing"
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard-main:
+    name: Guard main branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "Release must be dispatched from the main branch."
+          echo "Current ref: ${{ github.ref }}"
+          exit 1
+
+      - name: Confirm target
+        run: echo "Releasing from main at ${{ github.sha }}."
+
+  verify-ci:
+    name: Verify CI for release SHA
+    runs-on: ubuntu-latest
+    needs: guard-main
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Require successful CI on this SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TARGET_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          conclusion="$(gh api "repos/$REPO/actions/workflows/ci.yml/runs?branch=main&status=completed&per_page=30" \
+            --jq ".workflow_runs[] | select(.head_sha == \"$TARGET_SHA\") | .conclusion" \
+            | head -n 1)"
+
+          if [ "$conclusion" != "success" ]; then
+            echo "No successful CI run found for main SHA $TARGET_SHA."
+            echo "Run CI manually on main first, then dispatch Release again."
+            exit 1
+          fi
+
+          echo "CI is green for $TARGET_SHA."
+
+  release:
+    name: semantic-release
+    runs-on: ubuntu-latest
+    needs: verify-ci
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          # persist-credentials: false is required so that @semantic-release/git
+          # uses RELEASE_TOKEN (set below) to push, not the default GITHUB_TOKEN bot.
+          persist-credentials: false
+
+      - uses: ./.github/actions/setup
+        with:
+          cache-dependency-path: package-lock.json
+
+      - name: Install root dependencies
+        run: npm ci
+
+      - name: semantic-release dry run
+        if: inputs.dry_run
+        env:
+          # RELEASE_TOKEN: fine-grained PAT with Contents + Pull requests write.
+          # Required to bypass branch protection and push CHANGELOG.md + version bump.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: npx semantic-release --dry-run
+
+      - name: semantic-release
+        if: ${{ !inputs.dry_run }}
+        env:
+          # RELEASE_TOKEN: fine-grained PAT with Contents + Pull requests write.
+          # Required to bypass branch protection and push CHANGELOG.md + version bump.
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: npx semantic-release

@@ -1,9 +1,11 @@
-
 # doc-classifier-app
 
 <!-- Badges -->
+
 ![CI](https://github.com/m4rise/doc-classifier-app/actions/workflows/ci.yml/badge.svg)
-![Deploy](https://github.com/m4rise/doc-classifier-app/actions/workflows/deploy.yml/badge.svg)
+![Staging Deploy](https://github.com/m4rise/doc-classifier-app/actions/workflows/staging-deploy.yml/badge.svg)
+![Release](https://github.com/m4rise/doc-classifier-app/actions/workflows/release.yml/badge.svg)
+![Production Deploy](https://github.com/m4rise/doc-classifier-app/actions/workflows/deploy.yml/badge.svg)
 [![codecov](https://codecov.io/gh/m4rise/doc-classifier-app/graph/badge.svg)](https://codecov.io/gh/m4rise/doc-classifier-app)
 ![Dependencies](https://img.shields.io/librariesio/github/m4rise/doc-classifier-app)
 ![License](https://img.shields.io/github/license/m4rise/doc-classifier-app)
@@ -16,7 +18,8 @@
 
 ## 🚦 Quality & Automation
 
-- CI/CD with GitHub Actions (lint, test, build, security, deploy)
+- CI/CD with GitHub Actions (lint, test, security, optional staging train,
+  manual release, controlled production deploy)
 - Renovate for dependency management
 - Husky + lint-staged + Commitlint (quality before commit/push)
 - Branch and commit conventions (Conventional Commits)
@@ -46,23 +49,23 @@ Fullstack monorepo for intelligent document classification.
 ## Quickstart
 
 1. Install Node 24 via mise:
-	```bash
-	mise install
-	node -v
-	```
+   ```bash
+   mise install
+   node -v
+   ```
 2. Install dependencies:
-	```bash
-	npm --prefix backend install
-	npm --prefix frontend install
-	```
+   ```bash
+   npm --prefix backend install
+   npm --prefix frontend install
+   ```
 3. Start PostgreSQL + API hot reload:
-	```bash
-	docker compose up -d
-	```
+   ```bash
+   docker compose up -d
+   ```
 4. Start frontend:
-	```bash
-	npm --prefix frontend run dev
-	```
+   ```bash
+   npm --prefix frontend run dev
+   ```
 
 ## Monorepo Scripts
 
@@ -77,6 +80,8 @@ npm run build
 ## How to contribute
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines, branch naming, and PR process.
+See [docs/RELEASE_DEPLOY_FLOW.md](docs/RELEASE_DEPLOY_FLOW.md) for release train,
+staging, semantic-release, and production deploy operations.
 
 ## Notes
 

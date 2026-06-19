@@ -23,6 +23,8 @@ Every human-authored PR to `main` must have a primary GitHub issue and a closing
 keyword in the PR body: `Closes #N`, `Fixes #N`, or `Resolves #N`.
 
 See [docs/WORKFLOW.md](docs/WORKFLOW.md) for the detailed rules.
+See [docs/RELEASE_DEPLOY_FLOW.md](docs/RELEASE_DEPLOY_FLOW.md) for the
+release train, staging, semantic-release, tag, and production deploy runbook.
 
 For agent-assisted work, copy one of the prompt recipes from
 [docs/WORKFLOW.md#13-agent-prompt-recipes](docs/WORKFLOW.md#13-agent-prompt-recipes).
@@ -154,9 +156,18 @@ Pull requests to `main` run `.github/workflows/ci.yml`:
 - `test-e2e`
 - `security`
 
-The `release` job runs only after a push to `main` and after required CI jobs
-pass. Deployment is handled by `.github/workflows/deploy.yml` after successful
-CI on `main`.
+`main` is the integration branch for completed stories. CI runs on PRs and on
+application-relevant pushes to `main`; docs-only pushes to `main` are skipped so
+they do not trigger downstream deploy work.
+
+Release and production deploy are controlled separately:
+
+- `.github/workflows/release.yml` is manually dispatched from `main` when a
+  release train is ready.
+- `.github/workflows/staging-deploy.yml` can deploy the accumulated `main` train
+  to staging after CI when `ENABLE_STAGING_DEPLOY=true`.
+- `.github/workflows/deploy.yml` deploys production from a published GitHub
+  Release or from an explicit manual ref/tag/SHA.
 
 ## Renovate Breaking Changes
 
@@ -221,6 +232,7 @@ git branch -d feature/DC-123-short-description
 ## Useful Links
 
 - [docs/WORKFLOW.md](docs/WORKFLOW.md)
+- [docs/RELEASE_DEPLOY_FLOW.md](docs/RELEASE_DEPLOY_FLOW.md)
 - [.github/PULL_REQUEST_TEMPLATE.md](.github/PULL_REQUEST_TEMPLATE.md)
 - [.github/ISSUE_TEMPLATE/story.md](.github/ISSUE_TEMPLATE/story.md)
 - [.github/ISSUE_TEMPLATE/feature_request.md](.github/ISSUE_TEMPLATE/feature_request.md)
