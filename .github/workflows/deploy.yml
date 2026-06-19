@@ -180,6 +180,8 @@ jobs:
             FILE_STORAGE_DRIVER=gcs
             GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
             GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}
+            GEMINI_MODEL=gemini-3.5-flash
+            GEMINI_TIMEOUT_MS=8000
             OTEL_SERVICE_NAME=doc-classifier-app-backend
             OTEL_RESOURCE_ATTRIBUTES="service.namespace=production,deployment.environment=production"
             OTEL_TRACES_EXPORTER=otlp

@@ -51,6 +51,8 @@ the same service account also needs `iam.serviceAccounts.signBlob` via
 | `FILE_STORAGE_DRIVER`         |      ✅      |                    | ✅ `=gcs`                |           |             | Storage backend selector. Use `local` for dev/test and `gcs` for Cloud Run.               |
 | `LOCAL_UPLOAD_DIR`            |      ✅      |                    |                          |           |             | Local-only upload directory used only when `FILE_STORAGE_DRIVER=local`.                   |
 | `GEMINI_API_KEY`              |      ✅      |         ✅         | via `--set-secrets`      |           |             | API key for Google Gemini features.                                                       |
+| `GEMINI_MODEL`                |      ✅      |                    | ✅ `=gemini-3.5-flash`   |           |             | Gemini model used by the LLM provider.                                                    |
+| `GEMINI_TIMEOUT_MS`           |      ✅      |                    | ✅ `=8000`               |           |             | Gemini analysis timeout in milliseconds.                                                  |
 | `MCP_API_KEY`                 |      ✅      |         ✅         | via `--set-secrets`      |           |             | Static API key for MCP authentication.                                                    |
 | `SENTRY_DSN`                  |      ✅      |         ✅         | via `--set-secrets`      |           |             | Sentry DSN for backend error reporting.                                                   |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` |      ✅      |         ✅         | via `--set-secrets`      |           |             | OTLP endpoint for OpenTelemetry export.                                                   |
@@ -214,6 +216,8 @@ The backend deploy injects these as `env_vars` with `env_vars_update_strategy: o
 - `FILE_STORAGE_DRIVER=gcs`
 - `GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}`
 - `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}`
+- `GEMINI_MODEL=gemini-3.5-flash`
+- `GEMINI_TIMEOUT_MS=8000`
 - `OTEL_SERVICE_NAME=doc-classifier-app-backend`
 - `OTEL_RESOURCE_ATTRIBUTES="service.namespace=production,deployment.environment=production"`
 - `OTEL_TRACES_EXPORTER=otlp`

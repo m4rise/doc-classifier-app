@@ -85,6 +85,8 @@ This runbook tracks provider setup for `doc-classifier-app`.
 - `GCS_BUCKET_NAME`
 - `GCS_PROJECT_ID`
 - `FILE_STORAGE_DRIVER`
+- `GEMINI_MODEL`
+- `GEMINI_TIMEOUT_MS`
 - `OTEL_SERVICE_NAME`
 - `OTEL_RESOURCE_ATTRIBUTES`
 - `OTEL_TRACES_EXPORTER`
