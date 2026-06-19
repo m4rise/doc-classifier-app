@@ -1,0 +1,284 @@
+name: Deploy Staging
+
+# Optional staging train. Automatic staging deploys are enabled only when the
+# repository variable ENABLE_STAGING_DEPLOY is set to "true".
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref, tag, or SHA to deploy to staging. Leave empty to use the selected workflow ref."
+        required: false
+        type: string
+      deploy_backend:
+        description: "Deploy backend to staging Cloud Run"
+        required: false
+        default: true
+        type: boolean
+      deploy_frontend:
+        description: "Deploy frontend to staging Firebase Hosting"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: staging-deploy
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    name: Resolve staging target
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        vars.ENABLE_STAGING_DEPLOY == 'true'
+      )
+    permissions:
+      contents: read
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+      sha: ${{ steps.git.outputs.sha }}
+      deploy_backend: ${{ steps.detect.outputs.deploy_backend }}
+      deploy_frontend: ${{ steps.detect.outputs.deploy_frontend }}
+    steps:
+      - name: Resolve ref
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          WORKFLOW_RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          INPUT_REF: ${{ inputs.ref }}
+          DEFAULT_REF: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
+            deploy_ref="$WORKFLOW_RUN_SHA"
+          else
+            deploy_ref="${INPUT_REF:-$DEFAULT_REF}"
+          fi
+
+          if [ -z "$deploy_ref" ]; then
+            echo "No staging deploy ref could be resolved."
+            exit 1
+          fi
+
+          echo "ref=$deploy_ref" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.resolve.outputs.ref }}
+          fetch-depth: 2
+
+      - name: Resolve checked out SHA
+        id: git
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Detect deployable app changes
+        id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_DEPLOY_BACKEND: ${{ inputs.deploy_backend }}
+          INPUT_DEPLOY_FRONTEND: ${{ inputs.deploy_frontend }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            deploy_backend="${INPUT_DEPLOY_BACKEND:-true}"
+            deploy_frontend="${INPUT_DEPLOY_FRONTEND:-true}"
+          else
+            deploy_backend="false"
+            deploy_frontend="false"
+
+            if git rev-parse HEAD^ >/dev/null 2>&1; then
+              git diff --name-only HEAD^ HEAD > /tmp/changed-files.txt
+            else
+              git show --name-only --pretty=format: HEAD > /tmp/changed-files.txt
+            fi
+
+            while IFS= read -r path; do
+              case "$path" in
+                *.spec.*|*.test.*|backend/test/*|frontend/e2e/*|frontend/playwright.config.ts|frontend/vitest.config.ts|frontend/tsconfig.vitest.json|backend/jest.config.ts|backend/tsconfig.spec.json)
+                  continue
+                  ;;
+              esac
+
+              case "$path" in
+                backend/src/*|backend/prisma/*|backend/package.json|backend/package-lock.json|backend/Dockerfile*|backend/.dockerignore|backend/nest-cli.json|backend/prisma.config.ts|backend/tsconfig.json|backend/tsconfig.build.json)
+                  deploy_backend="true"
+                  ;;
+              esac
+
+              case "$path" in
+                frontend/src/*|frontend/public/*|frontend/index.html|frontend/package.json|frontend/package-lock.json|frontend/firebase.json|frontend/.firebaserc|frontend/env.d.ts|frontend/vite.config.ts|frontend/tsconfig.json|frontend/tsconfig.app.json|frontend/tsconfig.node.json)
+                  deploy_frontend="true"
+                  ;;
+              esac
+            done < /tmp/changed-files.txt
+          fi
+
+          echo "deploy_backend=$deploy_backend" >> "$GITHUB_OUTPUT"
+          echo "deploy_frontend=$deploy_frontend" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Staging deploy target"
+            echo ""
+            echo "- Ref: ${{ steps.resolve.outputs.ref }}"
+            echo "- SHA: ${{ steps.git.outputs.sha }}"
+            echo "- Backend: $deploy_backend"
+            echo "- Frontend: $deploy_frontend"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  deploy-backend:
+    name: Deploy Backend to Staging Cloud Run
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.deploy_backend == 'true'
+    environment: staging-backend
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
+      - uses: ./.github/actions/setup
+        with:
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        run: npm ci
+        working-directory: backend
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+
+      - name: Authenticate to GCP (OIDC)
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+          token_format: access_token
+
+      - name: Configure Docker for Artifact Registry
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ vars.GCP_STAGING_REGION || vars.GCP_REGION }}-docker.pkg.dev
+          username: oauth2accesstoken
+          password: ${{ steps.auth.outputs.access_token }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./backend
+          file: ./backend/Dockerfile
+          push: true
+          tags: ${{ vars.GCP_STAGING_REGION || vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_STAGING_PROJECT_ID || vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:staging-${{ needs.prepare.outputs.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v3
+        with:
+          service: ${{ vars.CLOUD_RUN_STAGING_SERVICE }}
+          region: ${{ vars.GCP_STAGING_REGION || vars.GCP_REGION }}
+          image: ${{ vars.GCP_STAGING_REGION || vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_STAGING_PROJECT_ID || vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:staging-${{ needs.prepare.outputs.sha }}
+          flags: --allow-unauthenticated
+          secrets: |
+            DATABASE_URL=DATABASE_URL_STAGING:latest
+            JWT_ACCESS_SECRET=JWT_ACCESS_SECRET_STAGING:latest
+            JWT_REFRESH_SECRET=JWT_REFRESH_SECRET_STAGING:latest
+            AES_ENCRYPTION_KEY=AES_ENCRYPTION_KEY_STAGING:latest
+            GEMINI_API_KEY=GEMINI_API_KEY_STAGING:latest
+            MCP_API_KEY=MCP_API_KEY_STAGING:latest
+            SENTRY_DSN=SENTRY_DSN_STAGING:latest
+            OTEL_EXPORTER_OTLP_ENDPOINT=OTEL_EXPORTER_OTLP_ENDPOINT_STAGING:latest
+            GRAFANA_INSTANCE_ID=GRAFANA_INSTANCE_ID_STAGING:latest
+            GRAFANA_API_KEY=GRAFANA_API_KEY_STAGING:latest
+          env_vars_update_strategy: overwrite
+          env_vars: |
+            NODE_ENV=staging
+            FILE_STORAGE_DRIVER=gcs
+            GCS_PROJECT_ID=${{ vars.GCP_STAGING_PROJECT_ID || vars.GCP_PROJECT_ID }}
+            GCS_BUCKET_NAME=${{ vars.GCS_STAGING_BUCKET_NAME }}
+            OTEL_SERVICE_NAME=doc-classifier-app-backend-staging
+            OTEL_RESOURCE_ATTRIBUTES="service.namespace=staging,deployment.environment=staging"
+            OTEL_TRACES_EXPORTER=otlp
+            OTEL_METRICS_EXPORTER=otlp
+            OTEL_LOGS_EXPORTER=otlp
+            THROTTLE_TTL=60
+            THROTTLE_LIMIT=100
+            THROTTLE_AUTH_TTL=60
+            THROTTLE_AUTH_LIMIT=10
+            THROTTLE_AUTH_SESSION_TTL=60
+            THROTTLE_AUTH_SESSION_LIMIT=60
+            THROTTLE_REGISTER_TTL=60
+            THROTTLE_REGISTER_LIMIT=5
+            THROTTLE_UPLOAD_TTL=60
+            THROTTLE_UPLOAD_LIMIT=10
+            CONFIDENCE_THRESHOLD=0.7
+            FILE_SIZE_LIMIT_MB=10
+            TOS_VERSION=1.0
+
+  deploy-frontend:
+    name: Deploy Frontend to Staging Firebase Hosting
+    runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.deploy_frontend == 'true'
+    environment: staging-frontend
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+
+      - uses: ./.github/actions/setup
+        with:
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend deps
+        run: npm ci
+        working-directory: frontend
+
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Authenticate to GCP (OIDC)
+        id: auth
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Deploy to Firebase Hosting
+        run: firebase deploy --only hosting --project ${{ vars.FIREBASE_STAGING_PROJECT_ID }}
+        working-directory: frontend
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}

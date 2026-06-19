@@ -1,30 +1,95 @@
-name: Deploy
+name: Deploy Production
 
-# Triggered only when CI passes on main — ensures no deploy on broken build.
-# workflow_dispatch allows manual triggering for testing without merging to main.
+# Production deploy is release-controlled. It runs when a GitHub Release is
+# published, or manually for an explicit ref/tag/SHA.
 on:
-  workflow_run:
-    workflows: [CI]
-    branches: [main]
-    types: [completed]
+  release:
+    types: [published]
   workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref, tag, or SHA to deploy. Leave empty to use the selected workflow ref."
+        required: false
+        type: string
+      deploy_backend:
+        description: "Deploy backend to Cloud Run"
+        required: false
+        default: true
+        type: boolean
+      deploy_frontend:
+        description: "Deploy frontend to Firebase Hosting"
+        required: false
+        default: true
+        type: boolean
+
+concurrency:
+  group: production-deploy-${{ github.event_name == 'release' && github.event.release.tag_name || inputs.ref || github.ref_name }}
+  cancel-in-progress: false
 
 jobs:
+  prepare:
+    name: Resolve deploy target
+    runs-on: ubuntu-latest
+    outputs:
+      ref: ${{ steps.resolve.outputs.ref }}
+      deploy_backend: ${{ steps.resolve.outputs.deploy_backend }}
+      deploy_frontend: ${{ steps.resolve.outputs.deploy_frontend }}
+    steps:
+      - name: Resolve ref and components
+        id: resolve
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_REF: ${{ inputs.ref }}
+          DEFAULT_REF: ${{ github.ref_name }}
+          INPUT_DEPLOY_BACKEND: ${{ inputs.deploy_backend }}
+          INPUT_DEPLOY_FRONTEND: ${{ inputs.deploy_frontend }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "release" ]; then
+            deploy_ref="$RELEASE_TAG"
+            deploy_backend="true"
+            deploy_frontend="true"
+          else
+            deploy_ref="${INPUT_REF:-$DEFAULT_REF}"
+            deploy_backend="${INPUT_DEPLOY_BACKEND:-true}"
+            deploy_frontend="${INPUT_DEPLOY_FRONTEND:-true}"
+          fi
+
+          if [ -z "$deploy_ref" ]; then
+            echo "No deploy ref could be resolved."
+            exit 1
+          fi
+
+          echo "ref=$deploy_ref" >> "$GITHUB_OUTPUT"
+          echo "deploy_backend=$deploy_backend" >> "$GITHUB_OUTPUT"
+          echo "deploy_frontend=$deploy_frontend" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Production deploy target"
+            echo ""
+            echo "- Ref: $deploy_ref"
+            echo "- Backend: $deploy_backend"
+            echo "- Frontend: $deploy_frontend"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   # ---------------------------------------------------------------------------
-  # Backend — Prisma migrate → Docker build+push → Cloud Run deploy
+  # Backend - Prisma migrate -> Docker build+push -> Cloud Run deploy
   # Secrets required (GitHub Actions):
-  #   WIF_PROVIDER, WIF_SERVICE_ACCOUNT  — GCP OIDC auth (no JSON key)
-  #   DATABASE_URL_PROD                  — Neon prod connection string (migrations)
+  #   WIF_PROVIDER, WIF_SERVICE_ACCOUNT  - GCP OIDC auth (no JSON key)
+  #   DATABASE_URL_PROD                  - Neon prod connection string (migrations)
   # Variables required (GitHub Actions vars.*):
-  #   GCP_PROJECT_ID, GCP_REGION         — GCP project and region
-  #   CLOUD_RUN_SERVICE                  — Cloud Run service name
-  #   GCS_BUCKET_NAME                    — GCS bucket name (non-sensitive)
+  #   GCP_PROJECT_ID, GCP_REGION         - GCP project and region
+  #   CLOUD_RUN_SERVICE                  - Cloud Run service name
+  #   GCS_BUCKET_NAME                    - GCS bucket name (non-sensitive)
   # ---------------------------------------------------------------------------
   deploy-backend:
     name: Deploy Backend to Cloud Run
     runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.deploy_backend == 'true'
     environment: production-backend
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       id-token: write # required for WIF OIDC
@@ -32,7 +97,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ needs.prepare.outputs.ref }}
+
+      - name: Resolve checked out SHA
+        id: git
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - uses: ./.github/actions/setup
         with:
@@ -78,7 +147,7 @@ jobs:
           context: ./backend
           file: ./backend/Dockerfile
           push: true
-          tags: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ github.event.workflow_run.head_sha || github.sha }}
+          tags: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ steps.git.outputs.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -87,11 +156,11 @@ jobs:
         with:
           service: ${{ vars.CLOUD_RUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
-          image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ github.event.workflow_run.head_sha || github.sha }}
-          # Allow unauthenticated invocations — Cloud Run IAM is not the auth layer.
+          image: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/backend/doc-classifier-backend:${{ steps.git.outputs.sha }}
+          # Allow unauthenticated invocations - Cloud Run IAM is not the auth layer.
           # Application-level JWT auth (NestJS Guards) handles request authentication.
           flags: --allow-unauthenticated
-          # Secrets from GCP Secret Manager — injected as env vars at runtime.
+          # Secrets from GCP Secret Manager - injected as env vars at runtime.
           # Format: ENV_VAR_NAME=secret-resource-name:version
           secrets: |
             DATABASE_URL=DATABASE_URL:latest
@@ -104,7 +173,7 @@ jobs:
             OTEL_EXPORTER_OTLP_ENDPOINT=OTEL_EXPORTER_OTLP_ENDPOINT:latest
             GRAFANA_INSTANCE_ID=GRAFANA_INSTANCE_ID:latest
             GRAFANA_API_KEY=GRAFANA_API_KEY:latest
-          # Non-sensitive config — passed as plain env vars.
+          # Non-sensitive config - passed as plain env vars.
           env_vars_update_strategy: overwrite
           env_vars: |
             NODE_ENV=production
@@ -131,18 +200,19 @@ jobs:
             TOS_VERSION=1.0
 
   # ---------------------------------------------------------------------------
-  # Frontend — Build Vue SPA → Firebase Hosting deploy
-  # No service account JSON needed — uses WIF (same SA as backend).
+  # Frontend - Build Vue SPA -> Firebase Hosting deploy
+  # No service account JSON needed - uses WIF (same SA as backend).
   # The github-actions SA has "Administrateur Firebase Hosting" role.
-  # Firebase CLI picks up Application Default Credentials set by auth@v2.
+  # Firebase CLI picks up Application Default Credentials set by auth@v3.
   # Variables required (GitHub Actions vars.*):
-  #   FIREBASE_PROJECT_ID       — Firebase project ID
+  #   FIREBASE_PROJECT_ID       - Firebase project ID
   # ---------------------------------------------------------------------------
   deploy-frontend:
     name: Deploy Frontend to Firebase Hosting
     runs-on: ubuntu-latest
+    needs: prepare
+    if: needs.prepare.outputs.deploy_frontend == 'true'
     environment: production-frontend
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       id-token: write # required for WIF OIDC
@@ -150,7 +220,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ needs.prepare.outputs.ref }}
 
       - uses: ./.github/actions/setup
         with:

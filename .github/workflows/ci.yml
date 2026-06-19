@@ -3,6 +3,18 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - ".github/CODEOWNERS"
+      - ".github/SECURITY.md"
+      - ".github/labeler.yml"
+      - ".github/skills/**"
+      - "LICENSE"
+      - "CHANGELOG.md"
+      - "backend/.env.example"
   pull_request:
     branches: [main]
   workflow_dispatch: # Allow manual runs without merging to main
@@ -235,34 +247,3 @@ jobs:
           ignore-unfixed: true
           vuln-type: os,library
           severity: HIGH,CRITICAL
-
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    needs: [lint, test-unit, test-integration, test-e2e, security]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-      issues: write
-      pull-requests: write
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          # persist-credentials: false is required so that @semantic-release/git
-          # uses RELEASE_TOKEN (set below) to push, not the default GITHUB_TOKEN bot.
-          persist-credentials: false
-
-      - uses: ./.github/actions/setup
-        with:
-          cache-dependency-path: package-lock.json
-
-      - name: Install root dependencies
-        run: npm ci
-
-      - name: semantic-release
-        env:
-          # RELEASE_TOKEN: fine-grained PAT with Contents + Pull requests write
-          # Required to bypass branch protection and push CHANGELOG.md + version bump
-          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
-        run: npx semantic-release

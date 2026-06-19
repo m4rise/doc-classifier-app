@@ -124,25 +124,32 @@ This runbook tracks provider setup for `doc-classifier-app`.
 
 ## 8. CI/CD pipeline
 
-Two GitHub Actions workflows are in use:
+Four GitHub Actions workflows are in use:
 
-| Workflow | File                           | Trigger           | Purpose                           |
-| -------- | ------------------------------ | ----------------- | --------------------------------- |
-| CI       | `.github/workflows/ci.yml`     | push + PR -> main | lint, unit, integration, security |
-| Deploy   | `.github/workflows/deploy.yml` | CI passes on main | deploy backend + frontend         |
+| Workflow          | File                                   | Trigger                               | Purpose                                     |
+| ----------------- | -------------------------------------- | ------------------------------------- | ------------------------------------------- |
+| CI                | `.github/workflows/ci.yml`             | PR -> main, app-relevant push -> main | lint, unit, integration, e2e, security      |
+| Deploy Staging    | `.github/workflows/staging-deploy.yml` | CI passes on main, gated by variable  | optional staging train                      |
+| Release           | `.github/workflows/release.yml`        | manual dispatch from main             | semantic-release for selected release train |
+| Deploy Production | `.github/workflows/deploy.yml`         | release published or manual dispatch  | deploy selected release/ref to production   |
 
-Deploy flow:
+Production deploy flow:
 
 1. `deploy-backend`
+   - checks out the release/manual ref
    - generates Prisma client with `DATABASE_URL_PROD`
    - runs `prisma migrate deploy`
    - authenticates to GCP via WIF
    - builds and pushes Docker image
    - deploys Cloud Run with runtime secrets and non-sensitive env vars
 2. `deploy-frontend`
+   - checks out the release/manual ref
    - builds frontend
    - authenticates to GCP via WIF
    - deploys Firebase Hosting via `firebase deploy --only hosting`
+
+Staging deploy is disabled by default until `ENABLE_STAGING_DEPLOY=true` and the
+staging variables/secrets listed in `docs/ci-cd-secrets.md` are configured.
 
 ## 9. Final verification
 

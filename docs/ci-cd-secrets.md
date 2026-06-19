@@ -33,6 +33,7 @@ the same service account also needs `iam.serviceAccounts.signBlob` via
 >   environment that consumes them
 > - in the current project setup, `DATABASE_URL_PROD` lives in
 >   `production-backend`
+> - staging deploy is disabled until `ENABLE_STAGING_DEPLOY=true`
 > - repo-level variables live in Settings -> Secrets and variables -> Actions
 >   -> Variables
 
@@ -79,6 +80,19 @@ the same service account also needs `iam.serviceAccounts.signBlob` via
 | `GCP_REGION`                  |              |                    |                          |           |     ✅      | GCP region for Cloud Run and Artifact Registry.                                           |
 | `CLOUD_RUN_SERVICE`           |              |                    |                          |           |     ✅      | Cloud Run backend service name.                                                           |
 | `FIREBASE_PROJECT_ID`         |              |                    |                          |           |     ✅      | Firebase project ID used by the frontend deploy job.                                      |
+
+Staging-specific additions used by `.github/workflows/staging-deploy.yml`:
+
+| Key                           | Storage / source      | Description                                                                |
+| ----------------------------- | --------------------- | -------------------------------------------------------------------------- |
+| `ENABLE_STAGING_DEPLOY`       | GH variable           | Set to `true` to enable automatic staging deploy after successful CI.      |
+| `DATABASE_URL_STAGING`        | GH environment secret | Staging database connection string used only by `prisma migrate deploy`.   |
+| `*_STAGING` runtime secrets   | GCP Secret Manager    | Staging runtime secret resources, for example `JWT_ACCESS_SECRET_STAGING`. |
+| `GCP_STAGING_PROJECT_ID`      | GH variable, optional | Staging GCP project. Falls back to `GCP_PROJECT_ID` when empty.            |
+| `GCP_STAGING_REGION`          | GH variable, optional | Staging GCP region. Falls back to `GCP_REGION` when empty.                 |
+| `CLOUD_RUN_STAGING_SERVICE`   | GH variable           | Staging Cloud Run backend service name.                                    |
+| `GCS_STAGING_BUCKET_NAME`     | GH variable           | Staging GCS bucket name injected into Cloud Run.                           |
+| `FIREBASE_STAGING_PROJECT_ID` | GH variable           | Firebase project ID used by staging frontend deploy.                       |
 
 > Note:
 >
@@ -135,6 +149,8 @@ Expected in the current setup: 10 runtime secrets.
 Current project setup:
 
 - `DATABASE_URL_PROD` in environment `production-backend`
+- `DATABASE_URL_STAGING` in environment `staging-backend` when staging deploy is
+  enabled
 - `WIF_PROVIDER` at repo level
 - `WIF_SERVICE_ACCOUNT` at repo level
 - additional repo-level CI/release secrets may exist independently (`CODECOV_TOKEN`,
@@ -146,6 +162,7 @@ Examples:
 REPO="m4rise/doc-classifier-app"
 
 gh secret set DATABASE_URL_PROD --env production-backend --repo "$REPO"
+gh secret set DATABASE_URL_STAGING --env staging-backend --repo "$REPO"
 gh secret set WIF_PROVIDER --repo "$REPO"
 gh secret set WIF_SERVICE_ACCOUNT --repo "$REPO"
 ```
@@ -154,6 +171,7 @@ gh secret set WIF_SERVICE_ACCOUNT --repo "$REPO"
 
 ```bash
 gh secret list --env production-backend --repo "$REPO"
+gh secret list --env staging-backend --repo "$REPO"
 gh secret list --repo "$REPO"
 ```
 
@@ -171,6 +189,19 @@ gh variable set GCP_REGION --body "europe-west1" --repo "$REPO"
 gh variable set CLOUD_RUN_SERVICE --body "doc-classifier-backend" --repo "$REPO"
 gh variable set GCS_BUCKET_NAME --body "doc-classifier-documents" --repo "$REPO"
 gh variable set FIREBASE_PROJECT_ID --body "doc-classifier-app" --repo "$REPO"
+```
+
+Optional staging variables:
+
+```bash
+gh variable set ENABLE_STAGING_DEPLOY --body "false" --repo "$REPO"
+gh variable set CLOUD_RUN_STAGING_SERVICE --body "doc-classifier-backend-staging" --repo "$REPO"
+gh variable set GCS_STAGING_BUCKET_NAME --body "doc-classifier-documents-staging" --repo "$REPO"
+gh variable set FIREBASE_STAGING_PROJECT_ID --body "doc-classifier-app-staging" --repo "$REPO"
+
+# Optional when staging uses a separate GCP project or region:
+gh variable set GCP_STAGING_PROJECT_ID --body "doc-classifier-app-staging" --repo "$REPO"
+gh variable set GCP_STAGING_REGION --body "europe-west1" --repo "$REPO"
 ```
 
 ---
@@ -202,8 +233,11 @@ The backend deploy injects these as `env_vars` with `env_vars_update_strategy: o
 - `FILE_SIZE_LIMIT_MB=10`
 - `TOS_VERSION=1.0`
 
-If business config changes, update both `backend/.env.example` and
-`.github/workflows/deploy.yml`.
+Staging uses the same non-sensitive config shape with `NODE_ENV=staging`,
+`GCS_STAGING_BUCKET_NAME`, and staging-specific Secret Manager resources.
+
+If business config changes, update `backend/.env.example`,
+`.github/workflows/deploy.yml`, and `.github/workflows/staging-deploy.yml`.
 
 ---
 
@@ -223,6 +257,10 @@ gh secret list --repo "$REPO"
 echo ""
 echo "=== GitHub env secrets (production-backend) ==="
 gh secret list --env production-backend --repo "$REPO"
+
+echo ""
+echo "=== GitHub env secrets (staging-backend, optional) ==="
+gh secret list --env staging-backend --repo "$REPO"
 
 echo ""
 echo "=== GitHub variables ==="
