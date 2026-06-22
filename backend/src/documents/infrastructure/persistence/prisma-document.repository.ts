@@ -3,9 +3,45 @@ import { DocumentStatus } from '../../../generated/prisma';
 import { PrismaService } from '../../../shared/infrastructure/database/prisma.service';
 import {
   CreatePendingDocumentInput,
+  DocumentDetails,
   DocumentRepository,
+  ProcessingDocument,
   UploadedDocument,
 } from '../../application/ports/document.repository.port';
+
+interface PersistedDocumentDetails {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: DocumentStatus;
+  processingResult: {
+    extractedText: string | null;
+    classification: string | null;
+    summary: string | null;
+    confidenceScore: number | null;
+    language: string | null;
+    errorMessage: string | null;
+  } | null;
+}
+
+const documentDetailsSelection = {
+  id: true,
+  originalName: true,
+  mimeType: true,
+  sizeBytes: true,
+  status: true,
+  processingResult: {
+    select: {
+      extractedText: true,
+      classification: true,
+      summary: true,
+      confidenceScore: true,
+      language: true,
+      errorMessage: true,
+    },
+  },
+} as const;
 
 @Injectable()
 export class PrismaDocumentRepository extends DocumentRepository {
@@ -41,4 +77,140 @@ export class PrismaDocumentRepository extends DocumentRepository {
       sizeBytes: document.sizeBytes,
     };
   }
+
+  beginProcessing(documentId: string): Promise<ProcessingDocument | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      const transition = await transaction.document.updateMany({
+        where: {
+          id: documentId,
+          status: DocumentStatus.PENDING,
+        },
+        data: { status: DocumentStatus.PROCESSING },
+      });
+
+      if (transition.count !== 1) {
+        return null;
+      }
+
+      return transaction.document.findUniqueOrThrow({
+        where: { id: documentId },
+        select: {
+          id: true,
+          storageKey: true,
+          mimeType: true,
+        },
+      });
+    });
+  }
+
+  completeProcessing(
+    documentId: string,
+    result: {
+      extractedText: string;
+      classification: string;
+      summary: string;
+      confidenceScore: number;
+      language: string;
+    },
+  ): Promise<DocumentDetails> {
+    return this.prisma.$transaction(async (transaction) => {
+      const transition = await transaction.document.updateMany({
+        where: {
+          id: documentId,
+          status: DocumentStatus.PROCESSING,
+        },
+        data: { status: DocumentStatus.DONE },
+      });
+
+      if (transition.count !== 1) {
+        throw new Error('Document is not in PROCESSING status');
+      }
+
+      await transaction.processingResult.create({
+        data: {
+          documentId,
+          ...result,
+          errorMessage: null,
+        },
+      });
+
+      const document = await transaction.document.findUniqueOrThrow({
+        where: { id: documentId },
+        select: documentDetailsSelection,
+      });
+
+      return mapDocumentDetails(document);
+    });
+  }
+
+  failProcessing(
+    documentId: string,
+    errorMessage: string,
+  ): Promise<DocumentDetails> {
+    return this.prisma.$transaction(async (transaction) => {
+      const transition = await transaction.document.updateMany({
+        where: {
+          id: documentId,
+          status: DocumentStatus.PROCESSING,
+        },
+        data: { status: DocumentStatus.FAILED },
+      });
+
+      if (transition.count !== 1) {
+        throw new Error('Document is not in PROCESSING status');
+      }
+
+      await transaction.processingResult.create({
+        data: {
+          documentId,
+          extractedText: null,
+          classification: null,
+          summary: null,
+          confidenceScore: null,
+          language: null,
+          errorMessage,
+        },
+      });
+
+      const document = await transaction.document.findUniqueOrThrow({
+        where: { id: documentId },
+        select: documentDetailsSelection,
+      });
+
+      return mapDocumentDetails(document);
+    });
+  }
+
+  async findByIdForUser(
+    documentId: string,
+    userId: string,
+  ): Promise<DocumentDetails | null> {
+    const document = await this.prisma.document.findFirst({
+      where: {
+        id: documentId,
+        userId,
+      },
+      select: documentDetailsSelection,
+    });
+
+    return document ? mapDocumentDetails(document) : null;
+  }
+}
+
+function mapDocumentDetails(
+  document: PersistedDocumentDetails,
+): DocumentDetails {
+  return {
+    id: document.id,
+    status: document.status,
+    originalName: document.originalName,
+    mimeType: document.mimeType,
+    sizeBytes: document.sizeBytes,
+    extractedText: document.processingResult?.extractedText ?? null,
+    classification: document.processingResult?.classification ?? null,
+    summary: document.processingResult?.summary ?? null,
+    confidenceScore: document.processingResult?.confidenceScore ?? null,
+    language: document.processingResult?.language ?? null,
+    errorMessage: document.processingResult?.errorMessage ?? null,
+  };
 }

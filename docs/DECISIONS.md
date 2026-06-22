@@ -9,6 +9,8 @@ Pour chaque décision, voir le détail dans `docs/adr/`.
 - [ADR-ARCH-002 - Backend Vertical Slice + Clean Light](adr/ADR-ARCH-002-backend-vertical-slice.md)
 - [ADR-ARCH-003 - Abstraction LLM provider](adr/ADR-ARCH-003-llm-provider-abstraction.md)
 - [ADR-ARCH-004 - State machine upload processing](adr/ADR-ARCH-004-upload-processing-state-machine.md)
+- [ADR-ARCH-005 - Gemini Flash model selection](adr/ADR-ARCH-005-gemini-flash-model-selection.md)
+- [ADR-ARCH-006 - Synchronous processing outcome persistence](adr/ADR-ARCH-006-synchronous-processing-outcome.md)
 - [ADR-DATA-001 - Prisma migrations](adr/ADR-DATA-001-prisma-migrations-strategy.md)
 - [ADR-DATA-002 - Prisma v7](adr/ADR-DATA-002-prisma-version-7.md)
 - [ADR-EVO-001 - Async processing pipeline](adr/ADR-EVO-001-async-processing-pipeline.md)

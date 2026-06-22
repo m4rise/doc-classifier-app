@@ -1,13 +1,6 @@
-export class LlmTimeoutError extends Error {
-  constructor(timeoutMs: number) {
-    super(`LLM analysis timed out after ${timeoutMs}ms`);
-    this.name = 'LlmTimeoutError';
-  }
-}
-
-export class LlmSchemaValidationError extends Error {
-  constructor(cause?: unknown) {
-    super('LLM response failed schema validation', { cause });
-    this.name = 'LlmSchemaValidationError';
-  }
-}
+// Compatibility export for Story 3.4 consumers. The canonical errors live in
+// shared because the documents application slice handles provider failures.
+export {
+  LlmSchemaValidationError,
+  LlmTimeoutError,
+} from '../../../shared/errors/llm.errors';

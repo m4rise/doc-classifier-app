@@ -5,8 +5,12 @@ import {
   InvalidFileTypeError,
 } from '../../domain/errors/upload-document.errors';
 import { validateDocumentFileType } from '../../domain/services/document-file-policy';
-import { DocumentRepository } from '../ports/document.repository.port';
+import {
+  DocumentDetails,
+  DocumentRepository,
+} from '../ports/document.repository.port';
 import { FileTypeDetector } from '../ports/file-type-detector.port';
+import { ClassifyDocumentUseCase } from './classify-document.use-case';
 
 export interface UploadDocumentInput {
   userId: string;
@@ -15,13 +19,7 @@ export interface UploadDocumentInput {
   sizeBytes: number;
 }
 
-export interface UploadDocumentOutput {
-  id: string;
-  status: 'PENDING';
-  originalName: string;
-  mimeType: string;
-  sizeBytes: number;
-}
+export type UploadDocumentOutput = DocumentDetails;
 
 export class UploadDocumentUseCase {
   constructor(
@@ -29,6 +27,7 @@ export class UploadDocumentUseCase {
     private readonly fileStorage: IFileStorage,
     private readonly fileTypeDetector: FileTypeDetector,
     private readonly fileSizeLimitBytes: number,
+    private readonly classifyDocumentUseCase: ClassifyDocumentUseCase,
     private readonly generateStorageKey: () => string = randomUUID,
   ) {}
 
@@ -48,13 +47,15 @@ export class UploadDocumentUseCase {
       validatedFileType.mimeType,
     );
 
-    return this.documentRepository.createPending({
+    const document = await this.documentRepository.createPending({
       userId: input.userId,
       originalName: input.originalName,
       mimeType: validatedFileType.mimeType,
       sizeBytes: input.sizeBytes,
       storageKey,
     });
+
+    return this.classifyDocumentUseCase.execute(document.id);
   }
 
   private assertFileSize(input: UploadDocumentInput): void {

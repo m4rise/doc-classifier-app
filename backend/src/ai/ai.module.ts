@@ -1,7 +1,5 @@
 import { Module } from '@nestjs/common';
 import { LLM_PROVIDER } from './application/ai.tokens';
-import { ClassifyDocumentUseCase } from './application/use-cases/classify-document.use-case';
-import { ILlmProvider } from './domain/ILlmProvider';
 import { GeminiLlmProvider } from './infrastructure/gemini-llm.provider';
 
 @Module({
@@ -14,13 +12,7 @@ import { GeminiLlmProvider } from './infrastructure/gemini-llm.provider';
       provide: LLM_PROVIDER,
       useExisting: GeminiLlmProvider,
     },
-    {
-      provide: ClassifyDocumentUseCase,
-      useFactory: (llmProvider: ILlmProvider) =>
-        new ClassifyDocumentUseCase(llmProvider),
-      inject: [LLM_PROVIDER],
-    },
   ],
-  exports: [LLM_PROVIDER, ClassifyDocumentUseCase],
+  exports: [LLM_PROVIDER],
 })
 export class AiModule {}

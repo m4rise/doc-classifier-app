@@ -15,6 +15,7 @@ interface GcsBucket {
 
 interface GcsFile {
   save(buffer: Buffer, options: GcsSaveOptions): Promise<unknown>;
+  download(): Promise<[Buffer]>;
   getSignedUrl(options: GcsSignedUrlOptions): Promise<[string]>;
 }
 
@@ -68,6 +69,16 @@ export class GcsFileStorage implements IFileStorage {
         resumable: false,
         validation: 'crc32c',
       });
+  }
+
+  async download(key: string): Promise<Buffer> {
+    assertValidDocumentStorageKey(key);
+    const [buffer] = await this.storage
+      .bucket(this.bucketName)
+      .file(key)
+      .download();
+
+    return buffer;
   }
 
   async getSignedUrl(key: string, ttlSeconds: number): Promise<string> {

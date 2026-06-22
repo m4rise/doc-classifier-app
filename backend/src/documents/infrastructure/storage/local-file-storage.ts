@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { mkdir, writeFile } from 'fs/promises';
+import { mkdir, readFile, writeFile } from 'fs/promises';
 import { resolve, sep } from 'path';
 import { pathToFileURL } from 'url';
 import { IFileStorage } from '../../../shared/interfaces/IFileStorage';
@@ -25,6 +25,11 @@ export class LocalFileStorage implements IFileStorage {
 
     await mkdir(this.uploadDirectory, { recursive: true });
     await writeFile(filePath, buffer, { flag: 'wx' });
+  }
+
+  async download(key: string): Promise<Buffer> {
+    assertValidDocumentStorageKey(key);
+    return readFile(this.resolveStoragePath(key));
   }
 
   getSignedUrl(key: string, ttlSeconds: number): Promise<string> {

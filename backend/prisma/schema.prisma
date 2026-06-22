@@ -101,11 +101,11 @@ model ProcessingResult {
   id              String   @id @default(uuid())
   documentId      String   @unique
   document        Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
-  extractedText   String
-  classification  String
-  summary         String
-  confidenceScore Float
-  language        String
+  extractedText   String?
+  classification  String?
+  summary         String?
+  confidenceScore Float?
+  language        String?
   errorMessage    String?
   processedAt     DateTime @default(now())
 

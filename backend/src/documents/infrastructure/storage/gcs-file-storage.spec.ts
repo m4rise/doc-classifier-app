@@ -9,8 +9,12 @@ describe('GcsFileStorage', () => {
 
   function createStorage() {
     const save = jest.fn(() => Promise.resolve());
+    const download = jest.fn(() =>
+      Promise.resolve([Buffer.from('%PDF-1.4', 'utf8')]),
+    );
     const getSignedUrl = jest.fn(() => Promise.resolve(['https://signed-url']));
     const file = {
+      download,
       getSignedUrl,
       save,
     };
@@ -28,7 +32,7 @@ describe('GcsFileStorage', () => {
       storage,
     );
 
-    return { bucket, fileStorage, getSignedUrl, save, storage };
+    return { bucket, download, fileStorage, getSignedUrl, save, storage };
   }
 
   it('uploads objects with content type, CRC validation and no-overwrite precondition', async () => {
@@ -67,6 +71,18 @@ describe('GcsFileStorage', () => {
     });
   });
 
+  it('downloads an object buffer from GCS', async () => {
+    const { bucket, download, fileStorage, storage } = createStorage();
+
+    await expect(fileStorage.download(storageKey)).resolves.toEqual(
+      Buffer.from('%PDF-1.4', 'utf8'),
+    );
+
+    expect(storage.bucket).toHaveBeenCalledWith('doc-classifier-documents');
+    expect(bucket.file).toHaveBeenCalledWith(storageKey);
+    expect(download).toHaveBeenCalledTimes(1);
+  });
+
   it('rejects invalid object keys before calling GCS', async () => {
     const { fileStorage, save } = createStorage();
 
@@ -75,6 +91,10 @@ describe('GcsFileStorage', () => {
     ).rejects.toThrow('Invalid storage key');
 
     expect(save).not.toHaveBeenCalled();
+
+    await expect(fileStorage.download('../invoice.pdf')).rejects.toThrow(
+      'Invalid storage key',
+    );
   });
 
   it('rejects signed URL TTLs outside the supported range', async () => {

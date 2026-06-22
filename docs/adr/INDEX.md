@@ -14,6 +14,7 @@ Format : [MADR](https://adr.github.io/madr/) - chaque ADR documente le contexte,
 | [ADR-ARCH-003](./ADR-ARCH-003-llm-provider-abstraction.md)        | Abstraction `ILlmProvider` (interface domaine / impl infra) | Accepted                                            |
 | [ADR-ARCH-004](./ADR-ARCH-004-upload-processing-state-machine.md) | Pipeline synchrone MVP - state machine upload               | Accepted (superseded partiellement par ADR-EVO-001) |
 | [ADR-ARCH-005](./ADR-ARCH-005-gemini-flash-model-selection.md)    | Gemini Flash model selection for the LLM provider           | Accepted                                            |
+| [ADR-ARCH-006](./ADR-ARCH-006-synchronous-processing-outcome.md)  | Synchronous processing outcome persistence                  | Accepted                                            |
 
 ---
 
