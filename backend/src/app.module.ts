@@ -4,6 +4,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AiModule } from './ai/ai.module';
 import { AuthModule } from './auth/auth.module';
 import { DocumentsModule } from './documents/documents.module';
 import { HealthModule } from './health/health.module';
@@ -31,6 +32,7 @@ import { UsersModule } from './users/users.module';
         redact: ['req.headers.authorization', 'req.headers["x-mcp-key"]'],
       },
     }),
+    AiModule,
     AuthModule,
     DocumentsModule,
     UsersModule,
