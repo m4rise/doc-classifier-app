@@ -1,16 +1,22 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { AuthModule } from '../auth/auth.module';
-import { IFileStorage } from '../shared/interfaces/IFileStorage';
+import { LlmModule } from '../llm/llm.module';
 import {
+  DOCUMENT_ANALYZER,
   DOCUMENT_REPOSITORY,
   FILE_SIZE_LIMIT_BYTES,
   FILE_STORAGE,
   FILE_TYPE_DETECTOR,
 } from './application/documents.tokens';
+import { DocumentAnalyzer } from './application/ports/document-analyzer.port';
 import { DocumentRepository } from './application/ports/document.repository.port';
+import { FileStorage } from './application/ports/file-storage.port';
 import { FileTypeDetector } from './application/ports/file-type-detector.port';
+import { GetDocumentUseCase } from './application/use-cases/get-document.use-case';
+import { ProcessDocumentUseCase } from './application/use-cases/process-document.use-case';
 import { UploadDocumentUseCase } from './application/use-cases/upload-document.use-case';
+import { SynchronousDocumentProcessingWorkflow } from './application/workflows/synchronous-document-processing.workflow';
 import { resolveFileStorageDriver } from './infrastructure/config/file-storage.config';
 import { resolveFileSizeLimitBytes } from './infrastructure/config/file-size-limit';
 import { FileTypePackageDetector } from './infrastructure/file-type/file-type-package-detector';
@@ -22,6 +28,7 @@ import { DocumentsController } from './presentation/documents.controller';
 @Module({
   imports: [
     AuthModule,
+    LlmModule,
     MulterModule.register({
       limits: { fileSize: resolveFileSizeLimitBytes() },
     }),
@@ -41,7 +48,7 @@ import { DocumentsController } from './presentation/documents.controller';
     },
     {
       provide: FILE_STORAGE,
-      useFactory: (localFileStorage: LocalFileStorage): IFileStorage =>
+      useFactory: (localFileStorage: LocalFileStorage): FileStorage =>
         resolveFileStorageDriver() === 'gcs'
           ? new GcsFileStorage()
           : localFileStorage,
@@ -52,10 +59,30 @@ import { DocumentsController } from './presentation/documents.controller';
       useValue: resolveFileSizeLimitBytes(),
     },
     {
+      provide: ProcessDocumentUseCase,
+      useFactory: (
+        documentAnalyzer: DocumentAnalyzer,
+        documentRepository: DocumentRepository,
+        fileStorage: FileStorage,
+      ) =>
+        new ProcessDocumentUseCase(
+          documentAnalyzer,
+          documentRepository,
+          fileStorage,
+        ),
+      inject: [DOCUMENT_ANALYZER, DOCUMENT_REPOSITORY, FILE_STORAGE],
+    },
+    {
+      provide: GetDocumentUseCase,
+      useFactory: (documentRepository: DocumentRepository) =>
+        new GetDocumentUseCase(documentRepository),
+      inject: [DOCUMENT_REPOSITORY],
+    },
+    {
       provide: UploadDocumentUseCase,
       useFactory: (
         documentRepository: DocumentRepository,
-        fileStorage: IFileStorage,
+        fileStorage: FileStorage,
         fileTypeDetector: FileTypeDetector,
         fileSizeLimitBytes: number,
       ) =>
@@ -71,6 +98,18 @@ import { DocumentsController } from './presentation/documents.controller';
         FILE_TYPE_DETECTOR,
         FILE_SIZE_LIMIT_BYTES,
       ],
+    },
+    {
+      provide: SynchronousDocumentProcessingWorkflow,
+      useFactory: (
+        uploadDocument: UploadDocumentUseCase,
+        processDocument: ProcessDocumentUseCase,
+      ) =>
+        new SynchronousDocumentProcessingWorkflow(
+          uploadDocument,
+          processDocument,
+        ),
+      inject: [UploadDocumentUseCase, ProcessDocumentUseCase],
     },
   ],
 })

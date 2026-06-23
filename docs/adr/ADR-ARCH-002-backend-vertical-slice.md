@@ -1,10 +1,10 @@
 # ADR-ARCH-002: Backend Vertical Slice + Clean Light
 
-## Status
+## Statut
 
-Accepted
+Acceptée
 
-## Context
+## Contexte
 
 Les responsabilités doivent rester séparées sans sur-ingénierie.
 Le projet est développé seul ; l'architecture doit être maintenable et évolutive
@@ -36,12 +36,12 @@ sont pas explicitement séparées.
 
 ### Vertical Slice + Clean Light (retenu)
 
-Organisation par slice métier (documents, auth, ai...), chaque slice avec
+Organisation par slice métier (documents, auth, users...), chaque slice avec
 `domain/`, `application/`, `infrastructure/`, `presentation/`.
 Frontières d'import contrôlées par ESLint. Clean architecture pragmatique, sans
 cérémonie hexagonale automatique.
 
-## Decision
+## Décision
 
 Organiser le backend par slices, chacune avec `domain/application/infrastructure/presentation`.
 
@@ -54,6 +54,11 @@ techniques restent dans `infrastructure/` ou `presentation/`.
 Les ports ne sont pas créés automatiquement pour chaque classe. Ils sont ajoutés
 quand ils protègent une règle métier, rendent un use-case testable sans framework,
 ou isolent une décision technique susceptible d'évoluer.
+
+Une intégration technique utilisée par des slices métier n'est pas automatiquement
+une vertical slice. Un module d'adapters comme `llm/` peut rester limité à son
+câblage et à son infrastructure. Les ports sémantiques appartiennent aux slices
+qui consomment la capacité ; les adapters techniques dépendent de ces ports.
 
 ### Communication entre slices, ports et shared domain
 
@@ -77,7 +82,12 @@ d'email deviennent une règle produit transversale.
 simple, peu coûteuse, et pas encore un contrat transversal explicite. Cela évite
 de créer un couplage prématuré ou une abstraction artificielle.
 
-## Consequences
+`shared/` n'est pas un mécanisme de contournement des frontières d'import. Un
+contrat n'y entre que s'il est réellement utilisé par plusieurs slices, stable,
+et sans propriétaire métier naturel. Un port consommé par une seule slice reste
+local à cette slice.
+
+## Conséquences
 
 - Les imports directs depuis le `domain/` d'une autre slice sont évités ; les
   dépendances inter-slices passent par des ports applicatifs ou par

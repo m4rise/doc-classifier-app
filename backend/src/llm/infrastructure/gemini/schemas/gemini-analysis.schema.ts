@@ -1,7 +1,7 @@
 import { z } from 'zod';
-import { LlmAnalysisResult } from '../../domain/ILlmProvider';
+import { DocumentAnalysisResult } from '../../../../documents/application/ports/document-analyzer.port';
 
-export const GeminiAnalysisSchema: z.ZodType<LlmAnalysisResult> = z
+export const GeminiAnalysisSchema: z.ZodType<DocumentAnalysisResult> = z
   .object({
     extractedText: z.string(),
     classification: z.string(),

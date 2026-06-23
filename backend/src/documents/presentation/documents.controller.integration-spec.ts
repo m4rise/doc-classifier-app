@@ -4,6 +4,8 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../../app.module';
+import { DOCUMENT_ANALYZER } from '../application/documents.tokens';
+import { DocumentAnalysisTimeoutError } from '../application/errors/document-analysis.errors';
 import { DocumentStatus } from '../../generated/prisma';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 
@@ -21,6 +23,12 @@ interface UploadDocumentResponseBody {
   originalName: string;
   mimeType: string;
   sizeBytes: number;
+  extractedText: string | null;
+  classification: string | null;
+  summary: string | null;
+  confidenceScore: number | null;
+  language: string | null;
+  errorMessage: string | null;
 }
 
 interface HttpResponseBody {
@@ -131,6 +139,14 @@ describe('DocumentsController integration', () => {
   const uploadDir = join(process.cwd(), 'uploads', 'jest-documents-upload');
   let app: NestExpressApplication;
   let prisma: PrismaService;
+  const successfulAnalysis = {
+    extractedText: 'Invoice #2026-001',
+    classification: 'invoice',
+    summary: 'Invoice for professional services.',
+    confidenceScore: 0.94,
+    language: 'en',
+  };
+  const analyze = jest.fn(() => Promise.resolve(successfulAnalysis));
 
   beforeAll(async () => {
     process.env.FILE_STORAGE_DRIVER = 'local';
@@ -138,7 +154,10 @@ describe('DocumentsController integration', () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(DOCUMENT_ANALYZER)
+      .useValue({ analyze })
+      .compile();
 
     app = moduleFixture.createNestApplication<NestExpressApplication>();
     app.set('trust proxy', 1);
@@ -147,6 +166,8 @@ describe('DocumentsController integration', () => {
   });
 
   beforeEach(async () => {
+    analyze.mockReset();
+    analyze.mockResolvedValue(successfulAnalysis);
     await rm(uploadDir, { recursive: true, force: true });
     await prisma.processingResult.deleteMany();
     await prisma.document.deleteMany();
@@ -173,7 +194,7 @@ describe('DocumentsController integration', () => {
     }
   });
 
-  it('POST /api/v1/documents/upload returns 202 and creates a PENDING document', async () => {
+  it('POST upload returns 201/DONE and owner GET returns the persisted analysis', async () => {
     const email = `document-upload.${Date.now()}@example.com`;
     const { user, accessToken } = await registerAndLogin(app, email);
     const pdfBuffer = createValidPdfBuffer();
@@ -185,19 +206,26 @@ describe('DocumentsController integration', () => {
         filename: 'invoice.pdf',
         contentType: 'application/pdf',
       })
-      .expect(202)
+      .expect(201)
       .expect((res: HttpResponseBody) => {
         const body = res.body as UploadDocumentResponseBody;
         expect(body.id).toEqual(expect.any(String));
-        expect(body.status).toBe('PENDING');
+        expect(body.status).toBe('DONE');
         expect(body.originalName).toBe('invoice.pdf');
         expect(body.mimeType).toBe('application/pdf');
         expect(body.sizeBytes).toBe(pdfBuffer.length);
+        expect(body.extractedText).toBe('Invoice #2026-001');
+        expect(body.classification).toBe('invoice');
+        expect(body.summary).toBe('Invoice for professional services.');
+        expect(body.confidenceScore).toBe(0.94);
+        expect(body.language).toBe('en');
+        expect(body.errorMessage).toBeNull();
       });
 
     const body = uploadResponse.body as UploadDocumentResponseBody;
     const persistedDocument = await prisma.document.findUnique({
       where: { id: body.id },
+      include: { processingResult: true },
     });
 
     expect(persistedDocument).toMatchObject({
@@ -206,7 +234,7 @@ describe('DocumentsController integration', () => {
       originalName: 'invoice.pdf',
       mimeType: 'application/pdf',
       sizeBytes: pdfBuffer.length,
-      status: DocumentStatus.PENDING,
+      status: DocumentStatus.DONE,
     });
     expect(persistedDocument?.storageKey).toMatch(uuidPattern);
     expect(persistedDocument?.storageKey).not.toBe('invoice.pdf');
@@ -215,6 +243,100 @@ describe('DocumentsController integration', () => {
     ).resolves.toMatchObject({
       size: pdfBuffer.length,
     });
+    expect(persistedDocument?.processingResult).toMatchObject({
+      extractedText: 'Invoice #2026-001',
+      classification: 'invoice',
+      summary: 'Invoice for professional services.',
+      confidenceScore: 0.94,
+      language: 'en',
+      errorMessage: null,
+    });
+    expect(analyze).toHaveBeenCalledWith({
+      fileBuffer: pdfBuffer,
+      mimeType: 'application/pdf',
+    });
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/documents/${body.id}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        expect(res.body).toEqual(body);
+      });
+  });
+
+  it('GET /api/v1/documents/:id returns 404 to a non-owner', async () => {
+    const owner = await registerAndLogin(
+      app,
+      `document-owner.${Date.now()}@example.com`,
+    );
+    const otherUser = await registerAndLogin(
+      app,
+      `document-non-owner.${Date.now()}@example.com`,
+    );
+
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/api/v1/documents/upload')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .attach('file', createValidPdfBuffer(), {
+        filename: 'private.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    const documentId = (uploadResponse.body as UploadDocumentResponseBody).id;
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${otherUser.accessToken}`)
+      .expect(404);
+  });
+
+  it('persists FAILED and a sanitized outcome when Gemini times out', async () => {
+    const { accessToken } = await registerAndLogin(
+      app,
+      `document-timeout.${Date.now()}@example.com`,
+    );
+    const timeoutError = new DocumentAnalysisTimeoutError(8_000);
+    analyze.mockRejectedValueOnce(timeoutError);
+
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/api/v1/documents/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', createValidPdfBuffer(), {
+        filename: 'timeout.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201)
+      .expect((res: HttpResponseBody) => {
+        const body = res.body as UploadDocumentResponseBody;
+        expect(body.status).toBe('FAILED');
+        expect(body.extractedText).toBeNull();
+        expect(body.classification).toBeNull();
+        expect(body.summary).toBeNull();
+        expect(body.confidenceScore).toBeNull();
+        expect(body.language).toBeNull();
+        expect(body.errorMessage).toBe('LLM analysis timed out');
+      });
+
+    const documentId = (uploadResponse.body as UploadDocumentResponseBody).id;
+    const persistedDocument = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { processingResult: true },
+    });
+
+    expect(persistedDocument?.status).toBe(DocumentStatus.FAILED);
+    expect(persistedDocument?.processingResult).toMatchObject({
+      extractedText: null,
+      classification: null,
+      summary: null,
+      confidenceScore: null,
+      language: null,
+      errorMessage: 'LLM analysis timed out',
+    });
+    expect(persistedDocument?.processingResult?.errorMessage).not.toContain(
+      'raw provider',
+    );
   });
 
   it.each([
@@ -238,10 +360,10 @@ describe('DocumentsController integration', () => {
           filename,
           contentType: expectedMimeType,
         })
-        .expect(202)
+        .expect(201)
         .expect((res: HttpResponseBody) => {
           const body = res.body as UploadDocumentResponseBody;
-          expect(body.status).toBe('PENDING');
+          expect(body.status).toBe('DONE');
           expect(body.originalName).toBe(filename);
           expect(body.mimeType).toBe(expectedMimeType);
           expect(body.sizeBytes).toBe(buffer.length);

@@ -1,4 +1,5 @@
 export const DOCUMENT_REPOSITORY = Symbol('DOCUMENT_REPOSITORY');
+export const DOCUMENT_ANALYZER = Symbol('DOCUMENT_ANALYZER');
 export const FILE_STORAGE = Symbol('FILE_STORAGE');
 export const FILE_TYPE_DETECTOR = Symbol('FILE_TYPE_DETECTOR');
 export const FILE_SIZE_LIMIT_BYTES = Symbol('FILE_SIZE_LIMIT_BYTES');

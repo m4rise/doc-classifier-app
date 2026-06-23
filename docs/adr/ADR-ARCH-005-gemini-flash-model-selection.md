@@ -1,55 +1,62 @@
-# ADR-ARCH-005: Gemini Flash Model Selection
+# ADR-ARCH-005 : Sélection du modèle Gemini Flash
 
-## Status
-Accepted
+## Statut
+Acceptée
 
 ## Date
 2026-06-19
 
-## Context
-Story #19 originally referenced Gemini 2.0 Flash Vision for the infrastructure
-LLM provider. Google AI documentation now marks `gemini-2.0-flash` as shut down
-on 2026-06-01, so using it as the runtime default would make the adapter fail
-in staging and production.
+## Contexte
+La story #19 référençait initialement Gemini 2.0 Flash Vision pour le fournisseur
+LLM d'infrastructure. La documentation Google AI indique désormais que
+`gemini-2.0-flash` a été arrêté le 1er juin 2026. L'utiliser comme modèle par
+défaut à l'exécution ferait donc échouer l'adapter en staging et en production.
 
-The provider still needs a low-latency, multimodal Flash model that can process
-PDF/image inputs and remain usable in the Gemini API free tier for MVP volumes.
+Le fournisseur nécessite toujours un modèle Flash multimodal à faible latence,
+capable de traiter des entrées PDF ou image et de rester utilisable dans le
+quota gratuit de l'API Gemini pour les volumes du MVP.
 
-## Options Considered
+## Options considérées
 
-### Keep `gemini-2.0-flash`
-Rejected because the model endpoint is shut down.
+### Conserver `gemini-2.0-flash`
+Rejetée, car l'endpoint du modèle est arrêté.
 
-### Use `gemini-3-flash-preview`
-Rejected as the default because preview models can carry more restrictive rate
-limits and shorter deprecation windows.
+### Utiliser `gemini-3-flash-preview`
+Rejetée comme valeur par défaut, car les modèles en préversion peuvent avoir des
+limites de débit plus restrictives et des fenêtres de dépréciation plus courtes.
 
-### Use `gemini-3.1-flash-lite`
-Viable for very high-volume lightweight extraction, but it trades quality for
-cost efficiency. Document extraction, classification, summary, and confidence
-scoring need better accuracy than the cheapest option by default.
+### Utiliser `gemini-3.1-flash-lite`
+Option viable pour une extraction légère à très fort volume, mais qui privilégie
+l'efficacité économique au détriment de la qualité. L'extraction, la
+classification, le résumé et le score de confiance nécessitent par défaut une
+meilleure précision que celle de l'option la moins coûteuse.
 
-### Use `gemini-3.5-flash`
-Accepted because it is listed as stable, is a Flash model, supports the free
-tier, and fits the project goal of a single fast multimodal analysis call.
+### Utiliser `gemini-3.5-flash`
+Option retenue, car le modèle est déclaré stable, appartient à la gamme Flash,
+prend en charge le quota gratuit et correspond à l'objectif du projet : une
+analyse multimodale rapide en un seul appel.
 
-## Decision
-Default the backend Gemini provider to `gemini-3.5-flash`.
+## Décision
+Utiliser `gemini-3.5-flash` comme modèle par défaut de l'adapter Gemini du
+backend.
 
-Make the model configurable through `GEMINI_MODEL` and the timeout configurable
-through `GEMINI_TIMEOUT_MS` with an 8000ms default. Keep `@google/generative-ai`
-SDK imports confined to `ai/infrastructure/`, as required by the story contract
-and ADR-ARCH-003.
+Le modèle reste configurable via `GEMINI_MODEL` et le délai d'expiration via
+`GEMINI_TIMEOUT_MS`, avec une valeur par défaut de 8 000 ms. Les imports du SDK
+`@google/generative-ai` restent confinés à `llm/infrastructure/gemini/`, derrière
+le port applicatif détenu par la slice consommatrice, conformément aux
+ADR-ARCH-003 et ADR-ARCH-007.
 
-## Consequences
-- Staging and production avoid the dead Gemini 2.0 Flash endpoint.
-- Future Google model changes require an environment update, not a code change.
-- Free-tier usage remains possible, but active quotas must be checked in Google
-  AI Studio for the project.
-- Free-tier Gemini API traffic may be used by Google to improve products, so
-  production documents should move to a paid tier if this conflicts with data
-  handling requirements.
+## Conséquences
+- Le staging et la production n'utilisent pas l'endpoint Gemini 2.0 Flash arrêté.
+- Un futur changement de modèle Google nécessite une modification de
+  l'environnement, pas du code.
+- L'utilisation du quota gratuit reste possible, mais les quotas actifs doivent
+  être vérifiés dans Google AI Studio pour le projet.
+- Le trafic de l'API Gemini utilisant le quota gratuit peut être exploité par
+  Google pour améliorer ses produits. Les documents de production devront donc
+  passer sur une offre payante si cela entre en conflit avec les exigences de
+  traitement des données.
 
-## References
+## Références
 - https://ai.google.dev/gemini-api/docs/models
 - https://ai.google.dev/gemini-api/docs/pricing

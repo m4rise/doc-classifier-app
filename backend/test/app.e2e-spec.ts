@@ -4,6 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
+import { DOCUMENT_ANALYZER } from './../src/documents/application/documents.tokens';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/shared/infrastructure/database/prisma.service';
 
@@ -23,7 +24,19 @@ describe('e2e', () => {
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(DOCUMENT_ANALYZER)
+      .useValue({
+        analyze: () =>
+          Promise.resolve({
+            extractedText: 'Invoice #2026-001',
+            classification: 'invoice',
+            summary: 'Invoice for professional services.',
+            confidenceScore: 0.94,
+            language: 'en',
+          }),
+      })
+      .compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -129,14 +142,14 @@ describe('e2e', () => {
           filename: 'invoice.pdf',
           contentType: 'application/pdf',
         })
-        .expect(202)
+        .expect(201)
         .expect((res: { body: unknown }) => {
           const body = res.body as {
             mimeType: string;
             originalName: string;
             status: string;
           };
-          expect(body.status).toBe('PENDING');
+          expect(body.status).toBe('DONE');
           expect(body.originalName).toBe('invoice.pdf');
           expect(body.mimeType).toBe('application/pdf');
         });

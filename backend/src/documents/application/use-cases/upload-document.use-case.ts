@@ -1,11 +1,14 @@
 import { randomUUID } from 'crypto';
-import { IFileStorage } from '../../../shared/interfaces/IFileStorage';
 import {
   FileTooLargeError,
   InvalidFileTypeError,
 } from '../../domain/errors/upload-document.errors';
 import { validateDocumentFileType } from '../../domain/services/document-file-policy';
-import { DocumentRepository } from '../ports/document.repository.port';
+import {
+  DocumentRepository,
+  UploadedDocument,
+} from '../ports/document.repository.port';
+import { FileStorage } from '../ports/file-storage.port';
 import { FileTypeDetector } from '../ports/file-type-detector.port';
 
 export interface UploadDocumentInput {
@@ -15,18 +18,12 @@ export interface UploadDocumentInput {
   sizeBytes: number;
 }
 
-export interface UploadDocumentOutput {
-  id: string;
-  status: 'PENDING';
-  originalName: string;
-  mimeType: string;
-  sizeBytes: number;
-}
+export type UploadDocumentOutput = UploadedDocument;
 
 export class UploadDocumentUseCase {
   constructor(
     private readonly documentRepository: DocumentRepository,
-    private readonly fileStorage: IFileStorage,
+    private readonly fileStorage: FileStorage,
     private readonly fileTypeDetector: FileTypeDetector,
     private readonly fileSizeLimitBytes: number,
     private readonly generateStorageKey: () => string = randomUUID,

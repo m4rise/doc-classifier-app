@@ -1,15 +1,15 @@
 import { GenerateContentResult } from '@google/generative-ai';
 import {
-  LlmSchemaValidationError,
-  LlmTimeoutError,
-} from '../domain/errors/llm.errors';
+  DocumentAnalysisTimeoutError,
+  InvalidDocumentAnalysisError,
+} from '../../../documents/application/errors/document-analysis.errors';
 import {
   GeminiContentGenerator,
-  GeminiLlmProvider,
-} from './gemini-llm.provider';
+  GeminiDocumentAnalyzer,
+} from './gemini-document-analyzer';
 import { DOCUMENT_ANALYSIS_PROMPT } from './prompts/document-analysis.prompt';
 
-describe('GeminiLlmProvider', () => {
+describe('GeminiDocumentAnalyzer', () => {
   const input = {
     fileBuffer: Buffer.from('%PDF-1.4\n%%EOF', 'utf8'),
     mimeType: 'application/pdf',
@@ -33,7 +33,7 @@ describe('GeminiLlmProvider', () => {
     );
     const provider = createProvider(generateContent);
 
-    await expect(provider.analyzeDocument(input)).resolves.toEqual(analysis);
+    await expect(provider.analyze(input)).resolves.toEqual(analysis);
 
     expect(generateContent).toHaveBeenCalledTimes(1);
     const [request, requestOptions] = generateContent.mock.calls[0];
@@ -49,16 +49,16 @@ describe('GeminiLlmProvider', () => {
     expectSignalAborted(requestOptions, false);
   });
 
-  it('throws LlmTimeoutError and aborts the Gemini call when the timeout fires', async () => {
+  it('throws DocumentAnalysisTimeoutError and aborts the Gemini call when the timeout fires', async () => {
     jest.useFakeTimers();
     const generateContent = mockGenerateContent(
       () => new Promise<GenerateContentResult>(() => undefined),
     );
     const provider = createProvider(generateContent, 10);
 
-    const result = expect(
-      provider.analyzeDocument(input),
-    ).rejects.toBeInstanceOf(LlmTimeoutError);
+    const result = expect(provider.analyze(input)).rejects.toBeInstanceOf(
+      DocumentAnalysisTimeoutError,
+    );
     await jest.advanceTimersByTimeAsync(10);
 
     await result;
@@ -66,18 +66,18 @@ describe('GeminiLlmProvider', () => {
     expectSignalAborted(requestOptions, true);
   });
 
-  it('throws LlmSchemaValidationError when Gemini returns malformed JSON', async () => {
+  it('throws InvalidDocumentAnalysisError when Gemini returns malformed JSON', async () => {
     const generateContent = mockGenerateContent(() =>
       Promise.resolve(createGeminiResult('not-json')),
     );
     const provider = createProvider(generateContent);
 
-    await expect(provider.analyzeDocument(input)).rejects.toBeInstanceOf(
-      LlmSchemaValidationError,
+    await expect(provider.analyze(input)).rejects.toBeInstanceOf(
+      InvalidDocumentAnalysisError,
     );
   });
 
-  it('throws LlmSchemaValidationError when Gemini returns JSON outside the expected schema', async () => {
+  it('throws InvalidDocumentAnalysisError when Gemini returns JSON outside the expected schema', async () => {
     const generateContent = mockGenerateContent(() =>
       Promise.resolve(
         createGeminiResult(JSON.stringify({ extractedText: '' })),
@@ -85,8 +85,8 @@ describe('GeminiLlmProvider', () => {
     );
     const provider = createProvider(generateContent);
 
-    await expect(provider.analyzeDocument(input)).rejects.toBeInstanceOf(
-      LlmSchemaValidationError,
+    await expect(provider.analyze(input)).rejects.toBeInstanceOf(
+      InvalidDocumentAnalysisError,
     );
   });
 });
@@ -94,8 +94,8 @@ describe('GeminiLlmProvider', () => {
 function createProvider(
   generateContent: GeminiContentGenerator['generateContent'],
   timeoutMs = 100,
-): GeminiLlmProvider {
-  return new GeminiLlmProvider({
+): GeminiDocumentAnalyzer {
+  return new GeminiDocumentAnalyzer({
     model: { generateContent },
     modelName: 'gemini-3.5-flash',
     timeoutMs,

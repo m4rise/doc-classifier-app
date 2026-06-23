@@ -1,14 +1,14 @@
-import { GeminiLlmProvider } from './gemini-llm.provider';
+import { GeminiDocumentAnalyzer } from './gemini-document-analyzer';
 
 const shouldRunRealGeminiTest =
   process.env.RUN_GEMINI_INTEGRATION === 'true' && process.env.GEMINI_API_KEY;
 const describeIfGeminiKey = shouldRunRealGeminiTest ? describe : describe.skip;
 
-describeIfGeminiKey('GeminiLlmProvider integration', () => {
+describeIfGeminiKey('GeminiDocumentAnalyzer integration', () => {
   it('returns a schema-valid result for a valid PDF buffer', async () => {
-    const provider = new GeminiLlmProvider();
+    const provider = new GeminiDocumentAnalyzer();
 
-    const result = await provider.analyzeDocument({
+    const result = await provider.analyze({
       fileBuffer: createMinimalPdfBuffer(),
       mimeType: 'application/pdf',
     });
