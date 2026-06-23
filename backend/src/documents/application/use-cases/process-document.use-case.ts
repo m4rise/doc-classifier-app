@@ -18,6 +18,7 @@ export class ProcessDocumentUseCase {
     private readonly documentAnalyzer: DocumentAnalyzer,
     private readonly documentRepository: DocumentRepository,
     private readonly fileStorage: FileStorage,
+    private readonly confidenceThreshold: number,
   ) {}
 
   async execute(documentId: string): Promise<DocumentDetails> {
@@ -42,8 +43,21 @@ export class ProcessDocumentUseCase {
       );
     }
 
-    return this.documentRepository.completeProcessing(documentId, analysis);
+    return this.documentRepository.completeProcessing(documentId, {
+      ...analysis,
+      needsReview: shouldReviewLowConfidence(
+        analysis.confidenceScore,
+        this.confidenceThreshold,
+      ),
+    });
   }
+}
+
+function shouldReviewLowConfidence(
+  confidenceScore: number,
+  confidenceThreshold: number,
+): boolean {
+  return confidenceScore < confidenceThreshold;
 }
 
 function sanitizeProcessingError(error: unknown): string {

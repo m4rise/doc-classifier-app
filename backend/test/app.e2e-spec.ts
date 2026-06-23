@@ -146,12 +146,14 @@ describe('e2e', () => {
         .expect((res: { body: unknown }) => {
           const body = res.body as {
             mimeType: string;
+            needsReview: boolean;
             originalName: string;
             status: string;
           };
           expect(body.status).toBe('DONE');
           expect(body.originalName).toBe('invoice.pdf');
           expect(body.mimeType).toBe('application/pdf');
+          expect(body.needsReview).toBe(false);
         });
     });
   });

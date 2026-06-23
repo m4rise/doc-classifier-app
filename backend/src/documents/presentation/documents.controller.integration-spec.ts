@@ -28,6 +28,7 @@ interface UploadDocumentResponseBody {
   summary: string | null;
   confidenceScore: number | null;
   language: string | null;
+  needsReview: boolean;
   errorMessage: string | null;
 }
 
@@ -219,6 +220,7 @@ describe('DocumentsController integration', () => {
         expect(body.summary).toBe('Invoice for professional services.');
         expect(body.confidenceScore).toBe(0.94);
         expect(body.language).toBe('en');
+        expect(body.needsReview).toBe(false);
         expect(body.errorMessage).toBeNull();
       });
 
@@ -249,6 +251,7 @@ describe('DocumentsController integration', () => {
       summary: 'Invoice for professional services.',
       confidenceScore: 0.94,
       language: 'en',
+      needsReview: false,
       errorMessage: null,
     });
     expect(analyze).toHaveBeenCalledWith({
@@ -292,6 +295,54 @@ describe('DocumentsController integration', () => {
       .expect(404);
   });
 
+  it('POST upload flags low-confidence analysis for manual review and exposes it on GET', async () => {
+    const { accessToken } = await registerAndLogin(
+      app,
+      `document-low-confidence.${Date.now()}@example.com`,
+    );
+    analyze.mockResolvedValueOnce({
+      ...successfulAnalysis,
+      confidenceScore: 0.58,
+    });
+
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/api/v1/documents/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', createValidPdfBuffer(), {
+        filename: 'review.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201)
+      .expect((res: HttpResponseBody) => {
+        const body = res.body as UploadDocumentResponseBody;
+        expect(body.status).toBe('DONE');
+        expect(body.confidenceScore).toBe(0.58);
+        expect(body.needsReview).toBe(true);
+      });
+
+    const documentId = (uploadResponse.body as UploadDocumentResponseBody).id;
+    const persistedDocument = await prisma.document.findUnique({
+      where: { id: documentId },
+      include: { processingResult: true },
+    });
+
+    expect(persistedDocument?.processingResult).toMatchObject({
+      confidenceScore: 0.58,
+      needsReview: true,
+      errorMessage: null,
+    });
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        const body = res.body as UploadDocumentResponseBody;
+        expect(body.confidenceScore).toBe(0.58);
+        expect(body.needsReview).toBe(true);
+      });
+  });
+
   it('persists FAILED and a sanitized outcome when Gemini times out', async () => {
     const { accessToken } = await registerAndLogin(
       app,
@@ -316,6 +367,7 @@ describe('DocumentsController integration', () => {
         expect(body.summary).toBeNull();
         expect(body.confidenceScore).toBeNull();
         expect(body.language).toBeNull();
+        expect(body.needsReview).toBe(false);
         expect(body.errorMessage).toBe('LLM analysis timed out');
       });
 
@@ -332,6 +384,7 @@ describe('DocumentsController integration', () => {
       summary: null,
       confidenceScore: null,
       language: null,
+      needsReview: false,
       errorMessage: 'LLM analysis timed out',
     });
     expect(persistedDocument?.processingResult?.errorMessage).not.toContain(

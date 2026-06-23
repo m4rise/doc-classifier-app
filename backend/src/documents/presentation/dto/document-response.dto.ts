@@ -11,5 +11,6 @@ export class DocumentResponseDto {
   summary!: string | null;
   confidenceScore!: number | null;
   language!: string | null;
+  needsReview!: boolean;
   errorMessage!: string | null;
 }

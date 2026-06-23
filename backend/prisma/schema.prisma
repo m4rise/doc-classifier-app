@@ -106,6 +106,7 @@ model ProcessingResult {
   summary         String?
   confidenceScore Float?
   language        String?
+  needsReview     Boolean  @default(false)
   errorMessage    String?
   processedAt     DateTime @default(now())
 

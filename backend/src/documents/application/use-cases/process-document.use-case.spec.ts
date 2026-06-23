@@ -26,7 +26,7 @@ describe('ProcessDocumentUseCase', () => {
     language: 'en',
   };
 
-  function createHarness() {
+  function createHarness(confidenceThreshold = 0.7) {
     const calls: string[] = [];
     const beginProcessing: jest.MockedFunction<
       DocumentRepository['beginProcessing']
@@ -42,14 +42,21 @@ describe('ProcessDocumentUseCase', () => {
       DocumentRepository['completeProcessing']
     > = jest.fn(() => {
       calls.push('completeProcessing');
-      return Promise.resolve(createDocumentDetails('DONE', analysis, null));
+      return Promise.resolve(
+        createDocumentDetails(
+          'DONE',
+          analysis,
+          analysis.confidenceScore < confidenceThreshold,
+          null,
+        ),
+      );
     });
     const failProcessing: jest.MockedFunction<
       DocumentRepository['failProcessing']
     > = jest.fn((_id, errorMessage) => {
       calls.push('failProcessing');
       return Promise.resolve(
-        createDocumentDetails('FAILED', null, errorMessage),
+        createDocumentDetails('FAILED', null, false, errorMessage),
       );
     });
     const documentRepository: DocumentRepository = {
@@ -81,6 +88,7 @@ describe('ProcessDocumentUseCase', () => {
       documentAnalyzer,
       documentRepository,
       fileStorage,
+      confidenceThreshold,
     );
 
     return {
@@ -98,7 +106,7 @@ describe('ProcessDocumentUseCase', () => {
     const harness = createHarness();
 
     await expect(harness.useCase.execute(documentId)).resolves.toEqual(
-      createDocumentDetails('DONE', analysis, null),
+      createDocumentDetails('DONE', analysis, false, null),
     );
 
     expect(harness.calls).toEqual([
@@ -112,11 +120,65 @@ describe('ProcessDocumentUseCase', () => {
       fileBuffer,
       mimeType: 'application/pdf',
     });
-    expect(harness.completeProcessing).toHaveBeenCalledWith(
-      documentId,
-      analysis,
-    );
+    expect(harness.completeProcessing).toHaveBeenCalledWith(documentId, {
+      ...analysis,
+      needsReview: false,
+    });
     expect(harness.failProcessing).not.toHaveBeenCalled();
+  });
+
+  it('flags a document for manual review when confidenceScore is below the threshold', async () => {
+    const lowConfidenceAnalysis = { ...analysis, confidenceScore: 0.58 };
+    const harness = createHarness();
+    harness.analyze.mockResolvedValueOnce(lowConfidenceAnalysis);
+    harness.completeProcessing.mockResolvedValueOnce(
+      createDocumentDetails('DONE', lowConfidenceAnalysis, true, null),
+    );
+
+    await expect(harness.useCase.execute(documentId)).resolves.toEqual(
+      createDocumentDetails('DONE', lowConfidenceAnalysis, true, null),
+    );
+
+    expect(harness.completeProcessing).toHaveBeenCalledWith(documentId, {
+      ...lowConfidenceAnalysis,
+      needsReview: true,
+    });
+  });
+
+  it('does not flag a document when confidenceScore equals the threshold', async () => {
+    const thresholdAnalysis = { ...analysis, confidenceScore: 0.7 };
+    const harness = createHarness();
+    harness.analyze.mockResolvedValueOnce(thresholdAnalysis);
+    harness.completeProcessing.mockResolvedValueOnce(
+      createDocumentDetails('DONE', thresholdAnalysis, false, null),
+    );
+
+    await expect(harness.useCase.execute(documentId)).resolves.toEqual(
+      createDocumentDetails('DONE', thresholdAnalysis, false, null),
+    );
+
+    expect(harness.completeProcessing).toHaveBeenCalledWith(documentId, {
+      ...thresholdAnalysis,
+      needsReview: false,
+    });
+  });
+
+  it('uses the injected threshold when deciding if a document needs review', async () => {
+    const thresholdAnalysis = { ...analysis, confidenceScore: 0.8 };
+    const harness = createHarness(0.85);
+    harness.analyze.mockResolvedValueOnce(thresholdAnalysis);
+    harness.completeProcessing.mockResolvedValueOnce(
+      createDocumentDetails('DONE', thresholdAnalysis, true, null),
+    );
+
+    await expect(harness.useCase.execute(documentId)).resolves.toEqual(
+      createDocumentDetails('DONE', thresholdAnalysis, true, null),
+    );
+
+    expect(harness.completeProcessing).toHaveBeenCalledWith(documentId, {
+      ...thresholdAnalysis,
+      needsReview: true,
+    });
   });
 
   it('persists a sanitized FAILED outcome when document analysis times out', async () => {
@@ -125,7 +187,7 @@ describe('ProcessDocumentUseCase', () => {
     harness.analyze.mockRejectedValueOnce(timeoutError);
 
     await expect(harness.useCase.execute(documentId)).resolves.toEqual(
-      createDocumentDetails('FAILED', null, 'LLM analysis timed out'),
+      createDocumentDetails('FAILED', null, false, 'LLM analysis timed out'),
     );
 
     expect(harness.failProcessing).toHaveBeenCalledWith(
@@ -146,6 +208,7 @@ describe('ProcessDocumentUseCase', () => {
       createDocumentDetails(
         'FAILED',
         null,
+        false,
         'LLM response failed schema validation',
       ),
     );
@@ -174,6 +237,7 @@ describe('ProcessDocumentUseCase', () => {
 function createDocumentDetails(
   status: 'DONE' | 'FAILED',
   analysis: DocumentAnalysisResult | null,
+  needsReview: boolean,
   errorMessage: string | null,
 ): DocumentDetails {
   return {
@@ -187,6 +251,7 @@ function createDocumentDetails(
     summary: analysis?.summary ?? null,
     confidenceScore: analysis?.confidenceScore ?? null,
     language: analysis?.language ?? null,
+    needsReview,
     errorMessage,
   };
 }
