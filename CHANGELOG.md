@@ -1,3 +1,11 @@
+## [1.12.0](https://github.com/m4rise/doc-classifier-app/compare/v1.11.0...v1.12.0) (2026-06-23)
+
+### Features
+
+* **ai-pipeline:** add Gemini LLM provider adapter ([#109](https://github.com/m4rise/doc-classifier-app/issues/109)) ([e74922a](https://github.com/m4rise/doc-classifier-app/commit/e74922af899aa8e6cbbde1795306a321dc277e8a))
+* **ai-pipeline:** persist low-confidence review flag ([#111](https://github.com/m4rise/doc-classifier-app/issues/111)) ([a74cb61](https://github.com/m4rise/doc-classifier-app/commit/a74cb6130adcc0bc720bc4b3f379b6bff82371bb))
+* **ai-pipeline:** process uploaded documents synchronously ([#110](https://github.com/m4rise/doc-classifier-app/issues/110)) ([9c1ee5f](https://github.com/m4rise/doc-classifier-app/commit/9c1ee5f7535a98eecfe43a6ab02909f30c7fcb18))
+
 ## [1.11.0](https://github.com/m4rise/doc-classifier-app/compare/v1.10.0...v1.11.0) (2026-06-18)
 
 ### Features
