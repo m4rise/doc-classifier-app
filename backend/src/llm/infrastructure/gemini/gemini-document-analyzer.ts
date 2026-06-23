@@ -7,14 +7,14 @@ import {
 } from '@google/generative-ai';
 import { ZodError } from 'zod';
 import {
-  ILlmProvider,
-  LlmAnalysisResult,
-  LlmDocumentInput,
-} from '../domain/ILlmProvider';
+  DocumentAnalysisInput,
+  DocumentAnalysisResult,
+  DocumentAnalyzer,
+} from '../../../documents/application/ports/document-analyzer.port';
 import {
-  LlmSchemaValidationError,
-  LlmTimeoutError,
-} from '../domain/errors/llm.errors';
+  DocumentAnalysisTimeoutError,
+  InvalidDocumentAnalysisError,
+} from '../../../documents/application/errors/document-analysis.errors';
 import {
   resolveGeminiApiKey,
   resolveGeminiModel,
@@ -30,35 +30,35 @@ export interface GeminiContentGenerator {
   ): Promise<GenerateContentResult>;
 }
 
-interface GeminiLlmProviderOptions {
+interface GeminiDocumentAnalyzerOptions {
   apiKey?: string;
   model?: GeminiContentGenerator;
   modelName?: string;
   timeoutMs?: number;
 }
 
-export class GeminiLlmProvider implements ILlmProvider {
+export class GeminiDocumentAnalyzer implements DocumentAnalyzer {
   private readonly apiKey?: string;
   private readonly modelName: string;
   private readonly timeoutMs: number;
   private readonly injectedModel?: GeminiContentGenerator;
   private cachedModel?: GeminiContentGenerator;
 
-  constructor(options: GeminiLlmProviderOptions = {}) {
+  constructor(options: GeminiDocumentAnalyzerOptions = {}) {
     this.apiKey = options.apiKey ?? resolveGeminiApiKey();
     this.modelName = options.modelName ?? resolveGeminiModel();
     this.timeoutMs = options.timeoutMs ?? resolveGeminiTimeoutMs();
     this.injectedModel = options.model;
   }
 
-  async analyzeDocument(input: LlmDocumentInput): Promise<LlmAnalysisResult> {
+  async analyze(input: DocumentAnalysisInput): Promise<DocumentAnalysisResult> {
     const result = await this.generateContentWithTimeout(input);
     const responseText = result.response.text();
     return this.parseResponse(responseText);
   }
 
   private generateContentWithTimeout(
-    input: LlmDocumentInput,
+    input: DocumentAnalysisInput,
   ): Promise<GenerateContentResult> {
     const abortController = new AbortController();
     const request = this.createRequest(input);
@@ -70,18 +70,18 @@ export class GeminiLlmProvider implements ILlmProvider {
     const timeout = new Promise<never>((_, reject) => {
       timeoutId = setTimeout(() => {
         abortController.abort();
-        reject(new LlmTimeoutError(this.timeoutMs));
+        reject(new DocumentAnalysisTimeoutError(this.timeoutMs));
       }, this.timeoutMs);
     });
 
     return Promise.race([operation, timeout])
       .catch((error: unknown) => {
-        if (error instanceof LlmTimeoutError) {
+        if (error instanceof DocumentAnalysisTimeoutError) {
           throw error;
         }
 
         if (abortController.signal.aborted) {
-          throw new LlmTimeoutError(this.timeoutMs);
+          throw new DocumentAnalysisTimeoutError(this.timeoutMs);
         }
 
         throw error;
@@ -93,7 +93,7 @@ export class GeminiLlmProvider implements ILlmProvider {
       });
   }
 
-  private createRequest(input: LlmDocumentInput): Array<string | Part> {
+  private createRequest(input: DocumentAnalysisInput): Array<string | Part> {
     return [
       DOCUMENT_ANALYSIS_PROMPT,
       {
@@ -111,7 +111,7 @@ export class GeminiLlmProvider implements ILlmProvider {
     }
 
     if (!this.apiKey) {
-      throw new Error('GEMINI_API_KEY is required for GeminiLlmProvider');
+      throw new Error('GEMINI_API_KEY is required for GeminiDocumentAnalyzer');
     }
 
     if (!this.cachedModel) {
@@ -127,13 +127,13 @@ export class GeminiLlmProvider implements ILlmProvider {
     return this.cachedModel;
   }
 
-  private parseResponse(responseText: string): LlmAnalysisResult {
+  private parseResponse(responseText: string): DocumentAnalysisResult {
     try {
       const parsedResponse = JSON.parse(responseText) as unknown;
       return GeminiAnalysisSchema.parse(parsedResponse);
     } catch (error) {
       if (error instanceof SyntaxError || error instanceof ZodError) {
-        throw new LlmSchemaValidationError(error);
+        throw new InvalidDocumentAnalysisError(error);
       }
 
       throw error;

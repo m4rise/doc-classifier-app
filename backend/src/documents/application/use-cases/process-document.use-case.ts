@@ -1,23 +1,23 @@
-import { IFileStorage } from '../../../shared/interfaces/IFileStorage';
 import {
-  LlmSchemaValidationError,
-  LlmTimeoutError,
-} from '../../../shared/errors/llm.errors';
+  DocumentAnalysisTimeoutError,
+  InvalidDocumentAnalysisError,
+} from '../errors/document-analysis.errors';
 import {
-  ILlmProvider,
-  LlmAnalysisResult,
-} from '../../../shared/interfaces/ILlmProvider';
+  DocumentAnalysisResult,
+  DocumentAnalyzer,
+} from '../ports/document-analyzer.port';
+import { FileStorage } from '../ports/file-storage.port';
 import { DocumentNotPendingError } from '../../domain/errors/process-document.errors';
 import {
   DocumentDetails,
   DocumentRepository,
 } from '../ports/document.repository.port';
 
-export class ClassifyDocumentUseCase {
+export class ProcessDocumentUseCase {
   constructor(
-    private readonly llmProvider: ILlmProvider,
+    private readonly documentAnalyzer: DocumentAnalyzer,
     private readonly documentRepository: DocumentRepository,
-    private readonly fileStorage: IFileStorage,
+    private readonly fileStorage: FileStorage,
   ) {}
 
   async execute(documentId: string): Promise<DocumentDetails> {
@@ -27,11 +27,11 @@ export class ClassifyDocumentUseCase {
       throw new DocumentNotPendingError(documentId);
     }
 
-    let analysis: LlmAnalysisResult;
+    let analysis: DocumentAnalysisResult;
 
     try {
       const fileBuffer = await this.fileStorage.download(document.storageKey);
-      analysis = await this.llmProvider.analyzeDocument({
+      analysis = await this.documentAnalyzer.analyze({
         fileBuffer,
         mimeType: document.mimeType,
       });
@@ -47,11 +47,11 @@ export class ClassifyDocumentUseCase {
 }
 
 function sanitizeProcessingError(error: unknown): string {
-  if (error instanceof LlmTimeoutError) {
+  if (error instanceof DocumentAnalysisTimeoutError) {
     return 'LLM analysis timed out';
   }
 
-  if (error instanceof LlmSchemaValidationError) {
+  if (error instanceof InvalidDocumentAnalysisError) {
     return 'LLM response failed schema validation';
   }
 

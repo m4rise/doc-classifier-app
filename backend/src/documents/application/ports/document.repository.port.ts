@@ -1,4 +1,4 @@
-import type { LlmAnalysisResult } from '../../../shared/interfaces/ILlmProvider';
+import type { DocumentAnalysisResult } from './document-analyzer.port';
 
 export interface CreatePendingDocumentInput {
   userId: string;
@@ -49,7 +49,7 @@ export abstract class DocumentRepository {
 
   abstract completeProcessing(
     documentId: string,
-    result: LlmAnalysisResult,
+    result: DocumentAnalysisResult,
   ): Promise<DocumentDetails>;
 
   abstract failProcessing(

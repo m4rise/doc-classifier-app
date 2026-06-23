@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
-import { IFileStorage } from '../../../shared/interfaces/IFileStorage';
+import { FileStorage } from '../../application/ports/file-storage.port';
 import type { GcsFileStorageConfig } from '../config/file-storage.config';
 import { resolveGcsFileStorageConfig } from '../config/file-storage.config';
 import { assertValidDocumentStorageKey } from './document-storage-key';
@@ -40,7 +40,7 @@ interface GcsSignedUrlOptions {
 const MAX_SIGNED_URL_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 @Injectable()
-export class GcsFileStorage implements IFileStorage {
+export class GcsFileStorage implements FileStorage {
   private readonly bucketName: string;
   private readonly storage: GcsStorageClient;
 

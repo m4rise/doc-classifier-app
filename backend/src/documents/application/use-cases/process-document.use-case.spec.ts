@@ -1,24 +1,24 @@
-import { IFileStorage } from '../../../shared/interfaces/IFileStorage';
 import {
-  LlmSchemaValidationError,
-  LlmTimeoutError,
-} from '../../../shared/errors/llm.errors';
+  DocumentAnalysisTimeoutError,
+  InvalidDocumentAnalysisError,
+} from '../errors/document-analysis.errors';
 import {
-  ILlmProvider,
-  LlmAnalysisResult,
-} from '../../../shared/interfaces/ILlmProvider';
+  DocumentAnalysisResult,
+  DocumentAnalyzer,
+} from '../ports/document-analyzer.port';
 import { DocumentNotPendingError } from '../../domain/errors/process-document.errors';
 import {
   DocumentDetails,
   DocumentRepository,
 } from '../ports/document.repository.port';
-import { ClassifyDocumentUseCase } from './classify-document.use-case';
+import { FileStorage } from '../ports/file-storage.port';
+import { ProcessDocumentUseCase } from './process-document.use-case';
 
-describe('ClassifyDocumentUseCase', () => {
+describe('ProcessDocumentUseCase', () => {
   const documentId = 'document-1';
   const storageKey = '8e61e3f1-8f3f-4a2b-99db-0d5deff2db38';
   const fileBuffer = Buffer.from('%PDF-1.4\n%%EOF', 'utf8');
-  const analysis: LlmAnalysisResult = {
+  const analysis: DocumentAnalysisResult = {
     extractedText: 'Invoice #2026-001',
     classification: 'invoice',
     summary: 'Invoice for professional services.',
@@ -59,32 +59,32 @@ describe('ClassifyDocumentUseCase', () => {
       failProcessing,
       findByIdForUser: jest.fn(),
     };
-    const download: jest.MockedFunction<IFileStorage['download']> = jest.fn(
+    const download: jest.MockedFunction<FileStorage['download']> = jest.fn(
       () => {
         calls.push('download');
         return Promise.resolve(fileBuffer);
       },
     );
-    const fileStorage: IFileStorage = {
+    const fileStorage: FileStorage = {
       download,
       getSignedUrl: jest.fn(),
       upload: jest.fn(),
     };
-    const analyzeDocument: jest.MockedFunction<
-      ILlmProvider['analyzeDocument']
-    > = jest.fn(() => {
-      calls.push('analyzeDocument');
-      return Promise.resolve(analysis);
-    });
-    const llmProvider: ILlmProvider = { analyzeDocument };
-    const useCase = new ClassifyDocumentUseCase(
-      llmProvider,
+    const analyze: jest.MockedFunction<DocumentAnalyzer['analyze']> = jest.fn(
+      () => {
+        calls.push('analyze');
+        return Promise.resolve(analysis);
+      },
+    );
+    const documentAnalyzer: DocumentAnalyzer = { analyze };
+    const useCase = new ProcessDocumentUseCase(
+      documentAnalyzer,
       documentRepository,
       fileStorage,
     );
 
     return {
-      analyzeDocument,
+      analyze,
       beginProcessing,
       calls,
       completeProcessing,
@@ -104,11 +104,11 @@ describe('ClassifyDocumentUseCase', () => {
     expect(harness.calls).toEqual([
       'beginProcessing',
       'download',
-      'analyzeDocument',
+      'analyze',
       'completeProcessing',
     ]);
     expect(harness.download).toHaveBeenCalledWith(storageKey);
-    expect(harness.analyzeDocument).toHaveBeenCalledWith({
+    expect(harness.analyze).toHaveBeenCalledWith({
       fileBuffer,
       mimeType: 'application/pdf',
     });
@@ -119,10 +119,10 @@ describe('ClassifyDocumentUseCase', () => {
     expect(harness.failProcessing).not.toHaveBeenCalled();
   });
 
-  it('persists a sanitized FAILED outcome when Gemini times out', async () => {
+  it('persists a sanitized FAILED outcome when document analysis times out', async () => {
     const harness = createHarness();
-    const timeoutError = new LlmTimeoutError(8_000);
-    harness.analyzeDocument.mockRejectedValueOnce(timeoutError);
+    const timeoutError = new DocumentAnalysisTimeoutError(8_000);
+    harness.analyze.mockRejectedValueOnce(timeoutError);
 
     await expect(harness.useCase.execute(documentId)).resolves.toEqual(
       createDocumentDetails('FAILED', null, 'LLM analysis timed out'),
@@ -137,10 +137,10 @@ describe('ClassifyDocumentUseCase', () => {
 
   it('persists a sanitized FAILED outcome for Zod/schema validation errors', async () => {
     const harness = createHarness();
-    const schemaError = new LlmSchemaValidationError(
+    const schemaError = new InvalidDocumentAnalysisError(
       new Error('raw malformed response'),
     );
-    harness.analyzeDocument.mockRejectedValueOnce(schemaError);
+    harness.analyze.mockRejectedValueOnce(schemaError);
 
     await expect(harness.useCase.execute(documentId)).resolves.toEqual(
       createDocumentDetails(
@@ -165,7 +165,7 @@ describe('ClassifyDocumentUseCase', () => {
     );
 
     expect(harness.download).not.toHaveBeenCalled();
-    expect(harness.analyzeDocument).not.toHaveBeenCalled();
+    expect(harness.analyze).not.toHaveBeenCalled();
     expect(harness.completeProcessing).not.toHaveBeenCalled();
     expect(harness.failProcessing).not.toHaveBeenCalled();
   });
@@ -173,7 +173,7 @@ describe('ClassifyDocumentUseCase', () => {
 
 function createDocumentDetails(
   status: 'DONE' | 'FAILED',
-  analysis: LlmAnalysisResult | null,
+  analysis: DocumentAnalysisResult | null,
   errorMessage: string | null,
 ): DocumentDetails {
   return {

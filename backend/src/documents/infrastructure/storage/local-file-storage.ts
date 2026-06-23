@@ -2,11 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import { resolve, sep } from 'path';
 import { pathToFileURL } from 'url';
-import { IFileStorage } from '../../../shared/interfaces/IFileStorage';
+import { FileStorage } from '../../application/ports/file-storage.port';
 import { assertValidDocumentStorageKey } from './document-storage-key';
 
 @Injectable()
-export class LocalFileStorage implements IFileStorage {
+export class LocalFileStorage implements FileStorage {
   private readonly uploadDirectory: string;
 
   constructor() {

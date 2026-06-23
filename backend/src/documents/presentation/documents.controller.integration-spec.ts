@@ -3,10 +3,10 @@ import { join } from 'path';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
-import { LLM_PROVIDER } from '../../ai/application/ai.tokens';
 import { AppModule } from '../../app.module';
+import { DOCUMENT_ANALYZER } from '../application/documents.tokens';
+import { DocumentAnalysisTimeoutError } from '../application/errors/document-analysis.errors';
 import { DocumentStatus } from '../../generated/prisma';
-import { LlmTimeoutError } from '../../shared/errors/llm.errors';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 
 interface RegisterResponseBody {
@@ -146,7 +146,7 @@ describe('DocumentsController integration', () => {
     confidenceScore: 0.94,
     language: 'en',
   };
-  const analyzeDocument = jest.fn(() => Promise.resolve(successfulAnalysis));
+  const analyze = jest.fn(() => Promise.resolve(successfulAnalysis));
 
   beforeAll(async () => {
     process.env.FILE_STORAGE_DRIVER = 'local';
@@ -155,8 +155,8 @@ describe('DocumentsController integration', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(LLM_PROVIDER)
-      .useValue({ analyzeDocument })
+      .overrideProvider(DOCUMENT_ANALYZER)
+      .useValue({ analyze })
       .compile();
 
     app = moduleFixture.createNestApplication<NestExpressApplication>();
@@ -166,8 +166,8 @@ describe('DocumentsController integration', () => {
   });
 
   beforeEach(async () => {
-    analyzeDocument.mockReset();
-    analyzeDocument.mockResolvedValue(successfulAnalysis);
+    analyze.mockReset();
+    analyze.mockResolvedValue(successfulAnalysis);
     await rm(uploadDir, { recursive: true, force: true });
     await prisma.processingResult.deleteMany();
     await prisma.document.deleteMany();
@@ -251,7 +251,7 @@ describe('DocumentsController integration', () => {
       language: 'en',
       errorMessage: null,
     });
-    expect(analyzeDocument).toHaveBeenCalledWith({
+    expect(analyze).toHaveBeenCalledWith({
       fileBuffer: pdfBuffer,
       mimeType: 'application/pdf',
     });
@@ -297,8 +297,8 @@ describe('DocumentsController integration', () => {
       app,
       `document-timeout.${Date.now()}@example.com`,
     );
-    const timeoutError = new LlmTimeoutError(8_000);
-    analyzeDocument.mockRejectedValueOnce(timeoutError);
+    const timeoutError = new DocumentAnalysisTimeoutError(8_000);
+    analyze.mockRejectedValueOnce(timeoutError);
 
     const uploadResponse = await request(app.getHttpServer())
       .post('/api/v1/documents/upload')

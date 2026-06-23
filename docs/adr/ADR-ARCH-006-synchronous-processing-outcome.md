@@ -1,147 +1,163 @@
-# ADR-ARCH-006: Synchronous Processing Outcome Persistence
+# ADR-ARCH-006 : Persistance du résultat du traitement synchrone
 
-## Status
+## Statut
 
-Accepted
+Acceptée
 
 ## Date
 
 2026-06-22
 
-## Context
+## Contexte
 
-Story #20 completes the synchronous MVP pipeline introduced by
-ADR-ARCH-004. Two earlier contracts leave important implementation details
-open:
+La story #20 complète le pipeline synchrone du MVP introduit par
+ADR-ARCH-004. Deux contrats antérieurs laissent ouverts des détails
+d'implémentation importants :
 
-- Story #17 returns HTTP 202 with a `PENDING` document before AI processing is
-  available.
-- The `processing_results` schema includes a nullable `errorMessage`, but all
-  success analysis fields are required, so a failure cannot be represented
-  without fake analysis values.
+- La story #17 retourne une réponse HTTP 202 avec un document `PENDING` avant
+  que le traitement IA soit disponible.
+- Le schéma `processing_results` contient un champ `errorMessage` nullable,
+  mais tous les champs d'analyse d'un succès sont obligatoires. Un échec ne
+  peut donc pas être représenté sans fausses valeurs d'analyse.
 
-Running work in the background after returning HTTP 202 is unsafe in the MVP
-Cloud Run request lifecycle because there is no durable queue or worker yet.
-Returning HTTP 202 after awaiting the complete pipeline is also misleading:
-the request is no longer merely accepted for later processing.
+Exécuter un traitement en arrière-plan après avoir retourné HTTP 202 n'est pas
+fiable dans le cycle de vie d'une requête Cloud Run du MVP, car aucune file
+durable ni aucun worker n'existe encore. Retourner HTTP 202 après avoir attendu
+le pipeline complet serait également trompeur : la requête n'est plus seulement
+acceptée pour un traitement ultérieur.
 
-The documents application slice must consume `ILlmProvider`, but the project
-forbids direct application-layer imports across feature slices. The provider
-contract therefore needs a shared canonical location while preserving the
-Story #18 compatibility import from `ai/domain`.
+La couche application de la slice `documents` doit rester indépendante du
+fournisseur. Le contrat de compatibilité `ILlmProvider` placé initialement dans
+`shared` résolvait les imports entre slices, mais n'exprimait pas correctement
+la propriété du port. ADR-ARCH-007 attribue désormais les ports sémantiques à la
+slice consommatrice et conserve les adapters de fournisseurs dans un module
+technique.
 
-## Decision
+## Décision
 
-### Request lifecycle
+### Cycle de vie de la requête
 
-`POST /api/v1/documents/upload` awaits the complete processing pipeline:
+`POST /api/v1/documents/upload` attend l'intégralité du pipeline de traitement :
 
-1. validate and store the upload using the Story #17 flow;
-2. create the `PENDING` document;
-3. atomically claim it as `PROCESSING`;
-4. download the stored object through `IFileStorage`;
-5. analyze it through `ILlmProvider`;
-6. atomically persist the processing outcome and the `DONE` or `FAILED`
-   document status;
-7. return HTTP 201 with the terminal document representation.
+1. valider et stocker le fichier selon le flux de la story #17 ;
+2. créer le document `PENDING` ;
+3. le revendiquer atomiquement avec le statut `PROCESSING` ;
+4. télécharger l'objet stocké via le port local `FileStorage` ;
+5. l'analyser via le port local `DocumentAnalyzer` ;
+6. persister atomiquement le résultat du traitement et le statut `DONE` ou
+   `FAILED` du document ;
+7. retourner HTTP 201 avec la représentation terminale du document.
 
-This intentionally supersedes the HTTP 202/PENDING response semantics of
-Story #17 once Story #20 is deployed. A failed AI analysis still returns the
-created document with `status: "FAILED"` and a sanitized `errorMessage`; the
-resource creation itself succeeded and the document remains retrievable.
+Cette décision remplace volontairement la sémantique HTTP 202/PENDING de la
+story #17 dès le déploiement de la story #20. Une analyse IA en échec retourne
+tout de même le document créé avec `status: "FAILED"` et un `errorMessage`
+assaini. La création de la ressource a réussi et le document reste consultable.
 
-`GET /api/v1/documents/:id` returns the same terminal representation only to
-the owning authenticated user. Missing and non-owned identifiers both return
-HTTP 404 to avoid resource-existence disclosure.
+`GET /api/v1/documents/:id` retourne la même représentation terminale uniquement
+à l'utilisateur authentifié qui possède le document. Un identifiant inexistant
+ou appartenant à un autre utilisateur retourne HTTP 404 afin de ne pas révéler
+l'existence de la ressource.
 
-### Processing outcome model
+### Modèle du résultat de traitement
 
-`ProcessingResult` represents exactly one terminal processing outcome:
+`ProcessingResult` représente exactement un résultat terminal :
 
-- `DONE`: all analysis fields are non-null and `errorMessage` is null;
-- `FAILED`: all analysis fields are null and `errorMessage` contains a
-  sanitized, operationally useful message.
+- `DONE` : tous les champs d'analyse sont non nuls et `errorMessage` est nul ;
+- `FAILED` : tous les champs d'analyse sont nuls et `errorMessage` contient un
+  message assaini et utile pour l'exploitation.
 
-The analysis columns are therefore nullable in the database. Application
-logic enforces the two valid shapes. Empty strings, zero-score sentinels, and
-raw provider errors are forbidden.
+Les colonnes d'analyse sont donc nullables en base de données. La logique
+applicative garantit les deux formes valides. Les chaînes vides, les scores nuls
+utilisés comme sentinelles et les erreurs brutes du fournisseur sont interdits.
 
-The terminal document transition and `ProcessingResult` insertion occur in a
-single Prisma transaction for both success and failure. The initial
-`PENDING → PROCESSING` claim is conditional and atomic so concurrent callers
-cannot process the same document twice.
+La transition terminale du document et l'insertion du `ProcessingResult` ont
+lieu dans une seule transaction Prisma, aussi bien en cas de succès que
+d'échec. La revendication initiale `PENDING → PROCESSING` est conditionnelle et
+atomique afin d'empêcher deux appels concurrents de traiter le même document.
 
-### Cross-slice provider contract
+### Composition applicative et frontière du fournisseur
 
-The canonical `ILlmProvider`, `LlmDocumentInput`, and `LlmAnalysisResult`
-contracts live under `shared/interfaces`. `ai/domain/ILlmProvider.ts` remains a
-type-only compatibility export for existing Story #18 consumers. Provider SDK
-imports remain confined to `ai/infrastructure`.
+`UploadDocumentUseCase` et `ProcessDocumentUseCase` restent indépendants.
+`SynchronousDocumentProcessingWorkflow` les compose uniquement pour respecter
+le contrat HTTP 201 actuel. Le futur worker pourra ainsi appeler
+`ProcessDocumentUseCase` sans modifier l'un ou l'autre des use cases.
 
-## Alternatives Considered
+Les contrats canoniques `DocumentAnalyzer`, `DocumentAnalysisInput` et
+`DocumentAnalysisResult` résident dans `documents/application/ports`. Le module
+technique `llm/` fournit l'adapter Gemini actuel et pourra sélectionner à
+l'avenir un adapter vLLM ou un autre fournisseur sans modifier le code
+applicatif de `documents`. Les imports des SDK de fournisseurs restent confinés
+à `llm/infrastructure`.
 
-### Return HTTP 202 and process in the background
+## Options considérées
 
-Rejected for the synchronous MVP. Without Cloud Tasks or another durable
-worker, request-local background work can be terminated and cannot provide
-reliable retries.
+### Retourner HTTP 202 et traiter en arrière-plan
 
-### Await processing but keep HTTP 202/PENDING
+Option rejetée pour le MVP synchrone. Sans Cloud Tasks ni autre worker durable,
+un traitement attaché à la requête peut être interrompu et ne permet pas de
+réessais fiables.
 
-Rejected because the response would describe work as pending after it has
-already reached a terminal state.
+### Attendre le traitement tout en conservant HTTP 202/PENDING
 
-### Store failures with empty analysis values
+Option rejetée, car la réponse décrirait un traitement encore en attente alors
+qu'il aurait déjà atteint un état terminal.
 
-Rejected because empty strings and a zero confidence score look like genuine
-analysis data and would contaminate downstream behavior.
+### Stocker les échecs avec des valeurs d'analyse vides
 
-### Add another error field to `Document`
+Option rejetée, car les chaînes vides et un score de confiance nul
+ressembleraient à de vraies données d'analyse et contamineraient les traitements
+ultérieurs.
 
-Rejected because `processing_results.errorMessage` already establishes the
-processing outcome as the error owner. Duplicating the field would create two
-sources of truth.
+### Ajouter un autre champ d'erreur à `Document`
 
-## Consequences
+Option rejetée, car `processing_results.errorMessage` établit déjà le résultat
+du traitement comme propriétaire de l'erreur. Dupliquer ce champ créerait deux
+sources de vérité.
 
-- Upload latency includes storage download and the Gemini timeout window.
-- The API response changes from HTTP 202/PENDING to HTTP 201 with a terminal
-  `DONE` or `FAILED` document.
-- Failure rows can be represented honestly without fake values.
-- Completed outcomes and status transitions are atomic.
-- The synchronous flow remains intentionally temporary; ADR-EVO-001 defines
-  the durable asynchronous evolution.
-- A later retry feature must define whether the one-to-one processing outcome
-  is replaced or versioned before retries are introduced.
+## Conséquences
 
-### Accepted MVP recovery limitations
+- La latence d'upload inclut le téléchargement depuis le stockage et le délai
+  d'expiration Gemini.
+- La réponse de l'API passe de HTTP 202/PENDING à HTTP 201 avec un document
+  terminal `DONE` ou `FAILED`.
+- Les lignes en échec sont représentées honnêtement, sans fausses valeurs.
+- Les résultats terminaux et les transitions de statut sont atomiques.
+- Le flux synchrone reste volontairement temporaire ; ADR-EVO-001 définit son
+  évolution asynchrone durable.
+- Une future fonctionnalité de réessai devra définir si le résultat de
+  traitement en relation un-à-un est remplacé ou versionné.
 
-The `PENDING → PROCESSING` claim commits before storage and Gemini calls so
-concurrent requests cannot process the same document. This also means that a
-process termination after the claim, or a database outage while persisting the
-terminal outcome, can leave a document in `PROCESSING`. The synchronous MVP has
-no lease, automatic retry, or stale-claim recovery mechanism. Durable recovery
-belongs to the queued evolution in ADR-EVO-001; operators must reconcile stale
-rows manually until that evolution is implemented.
+### Limites de reprise acceptées pour le MVP
 
-`IFileStorage.download()` does not add a separate application-level timeout in
-this story. Storage SDK and platform timeouts remain the outer bound, while the
-Gemini call retains its explicit `GEMINI_TIMEOUT_MS` guard. Adding an abortable
-storage timeout requires a provider-neutral cancellation contract and is left
-to the same resilience evolution rather than simulated with a non-cancelling
-`Promise.race()`.
+La revendication `PENDING → PROCESSING` est validée avant les appels au stockage
+et à Gemini afin d'empêcher les traitements concurrents. Par conséquent, un
+arrêt du processus après cette revendication ou une indisponibilité de la base
+lors de la persistance du résultat terminal peut laisser un document en
+`PROCESSING`. Le MVP synchrone ne possède ni bail, ni réessai automatique, ni
+mécanisme de récupération des revendications obsolètes. La reprise durable
+appartient à l'évolution avec file décrite par ADR-EVO-001. Jusqu'à son
+implémentation, les opérateurs doivent réconcilier manuellement les lignes
+obsolètes.
 
-Documents already in `PENDING` or `PROCESSING` before Story #20 is deployed are
-not replayed automatically. They require an operational reconciliation or a
-future retry endpoint; silently claiming historical rows during application
-startup would introduce unbounded external work and unsafe multi-instance
-coordination.
+`FileStorage.download()` n'ajoute pas de délai d'expiration applicatif distinct
+dans cette story. Les délais des SDK de stockage et de la plateforme constituent
+la limite extérieure, tandis que l'appel Gemini conserve sa protection explicite
+`GEMINI_TIMEOUT_MS`. Ajouter un délai annulable sur le stockage nécessiterait un
+contrat d'annulation indépendant du fournisseur. Cette évolution de résilience
+ne doit pas être simulée par un `Promise.race()` qui n'annule pas l'opération.
 
-## References
+Les documents déjà en `PENDING` ou `PROCESSING` avant le déploiement de la story
+#20 ne sont pas rejoués automatiquement. Ils nécessitent une réconciliation
+opérationnelle ou un futur endpoint de réessai. Revendiquer silencieusement les
+lignes historiques au démarrage de l'application introduirait une quantité de
+travail externe non bornée et une coordination multi-instance non sécurisée.
 
-- GitHub Story #20
-- GitHub Epic #84
+## Références
+
+- Story GitHub #20
+- Epic GitHub #84
 - ADR-ARCH-002 — Backend Vertical Slice + Clean Light
-- ADR-ARCH-003 — LLM provider abstraction
-- ADR-ARCH-004 — synchronous MVP processing state machine
-- ADR-EVO-001 — planned asynchronous pipeline
+- ADR-ARCH-003 — Abstraction du fournisseur LLM
+- ADR-ARCH-004 — Machine d'états du traitement synchrone du MVP
+- ADR-ARCH-007 — Ports IA détenus par les slices consommatrices et module d'adapters
+- ADR-EVO-001 — Pipeline asynchrone planifié

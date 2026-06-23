@@ -4,7 +4,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { App } from 'supertest/types';
-import { LLM_PROVIDER } from './../src/ai/application/ai.tokens';
+import { DOCUMENT_ANALYZER } from './../src/documents/application/documents.tokens';
 import { AppModule } from './../src/app.module';
 import { PrismaService } from './../src/shared/infrastructure/database/prisma.service';
 
@@ -25,9 +25,9 @@ describe('e2e', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
-      .overrideProvider(LLM_PROVIDER)
+      .overrideProvider(DOCUMENT_ANALYZER)
       .useValue({
-        analyzeDocument: () =>
+        analyze: () =>
           Promise.resolve({
             extractedText: 'Invoice #2026-001',
             classification: 'invoice',

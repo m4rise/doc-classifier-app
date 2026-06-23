@@ -472,7 +472,7 @@ ADRs à maîtriser comme réponses orales :
 
 | ADR                                         | Question d'entretien associée                                               |
 | ------------------------------------------- | --------------------------------------------------------------------------- |
-| **ADR-ARCH-003** (ILlmProvider)             | _"Comment tu découples ton domaine d'un fournisseur externe ?"_             |
+| **ADR-ARCH-003/007** (ports IA)             | _"Comment tu découples ton domaine d'un fournisseur externe ?"_             |
 | **ADR-SEC-001** (AES-256-GCM)               | _"Comment tu gères les données sensibles at-rest ?"_                        |
 | **ADR-ARCH-004** (state machine)            | _"Comment tu gères la robustesse d'un pipeline avec des appels externes ?"_ |
 | **ADR-SEC-004** (SQL safety)                | _"Comment tu préviens les injections SQL ?"_                                |
@@ -502,7 +502,7 @@ Après l'implémentation de A1 Phase 2 (Cloud Tasks), le projet couvre déjà :
 - **Patterns de résilience** : idempotence, retry backoff, DLQ
 - **Observabilité prod-grade** : OTel, traces distribuées, métriques de file
 - **Sécurité** : AES-256-GCM, Secret Manager, distroless Docker, SQL injection prevention
-- **Clean architecture** : vertical slices, ILlmProvider, domain isolation
+- **Clean architecture** : vertical slices, ports sémantiques détenus par les slices consommatrices, isolation du domaine
 - **CI/CD** : lint, tests, security scan (Trivy), deploy automatisé
 - **Standards modernes** : MADR, RFC 7807, MCP (AI agent interoperability)
 - **Compliance** : RGPD partiel, consentement versionné couvert par l'epic auth
@@ -516,7 +516,7 @@ C'est une couverture qui dépasse ce qu'on attend d'un profil 6 ans d'expérienc
 ### Ce qui est déjà fort — ne pas toucher
 
 - **ADR-013 et ADR-014** sont au niveau de ce qu'on voit dans des équipes structurées. Utilise-les comme référence de format pour les nouveaux ADRs.
-- **ADR-004** (ILlmProvider) et **ADR-005** (AES-256-GCM + Secret Manager) montrent une maturité sur la clean architecture et la sécurité. Ces deux décisions doivent être préparées comme des réponses d'entretien (voir E1).
+- **ADR-ARCH-003/007** (provider LLM derrière des ports sémantiques) et **ADR-SEC-001** (AES-256-GCM + Secret Manager) montrent une maturité sur la clean architecture et la sécurité. Ces décisions doivent être préparées comme des réponses d'entretien (voir E1).
 - **ADR-012** (interdiction de `$queryRawUnsafe`) et **ADR-011** (nullable-first migrations) montrent une discipline de qualité rare à ce niveau.
 - **L'intégration MCP** est différenciante — peu de projets portfolio y pensent. La positionner en avant dans le README.
 - **ADR-ARCH-004 mis à jour** et **ADR-EVO-001 créé (Proposed)** documentent la trajectoire sync→async (Cloud Tasks → Kafka) avant implémentation : signal de maturité architecturale.

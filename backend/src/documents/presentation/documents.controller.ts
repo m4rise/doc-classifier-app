@@ -20,7 +20,7 @@ import type { AuthenticatedRequest } from '../../auth/presentation/authenticated
 import { JwtAuthGuard } from '../../auth/infrastructure/passport/jwt-auth.guard';
 import { createUploadThrottleOptions } from '../../shared/infrastructure/rate-limiting/throttle.config';
 import { GetDocumentUseCase } from '../application/use-cases/get-document.use-case';
-import { UploadDocumentUseCase } from '../application/use-cases/upload-document.use-case';
+import { SynchronousDocumentProcessingWorkflow } from '../application/workflows/synchronous-document-processing.workflow';
 import { DocumentNotFoundError } from '../domain/errors/process-document.errors';
 import {
   FileTooLargeError,
@@ -38,7 +38,7 @@ interface UploadedMultipartFile {
 @UseGuards(JwtAuthGuard)
 export class DocumentsController {
   constructor(
-    private readonly uploadDocumentUseCase: UploadDocumentUseCase,
+    private readonly synchronousDocumentProcessing: SynchronousDocumentProcessingWorkflow,
     private readonly getDocumentUseCase: GetDocumentUseCase,
   ) {}
 
@@ -55,7 +55,7 @@ export class DocumentsController {
     }
 
     try {
-      return await this.uploadDocumentUseCase.execute({
+      return await this.synchronousDocumentProcessing.execute({
         userId: req.user.userId,
         originalName: file.originalname,
         buffer: file.buffer,

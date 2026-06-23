@@ -1,21 +1,22 @@
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
-import { AiModule } from '../ai/ai.module';
-import { LLM_PROVIDER } from '../ai/application/ai.tokens';
 import { AuthModule } from '../auth/auth.module';
-import { IFileStorage } from '../shared/interfaces/IFileStorage';
-import { ILlmProvider } from '../shared/interfaces/ILlmProvider';
+import { LlmModule } from '../llm/llm.module';
 import {
+  DOCUMENT_ANALYZER,
   DOCUMENT_REPOSITORY,
   FILE_SIZE_LIMIT_BYTES,
   FILE_STORAGE,
   FILE_TYPE_DETECTOR,
 } from './application/documents.tokens';
+import { DocumentAnalyzer } from './application/ports/document-analyzer.port';
 import { DocumentRepository } from './application/ports/document.repository.port';
+import { FileStorage } from './application/ports/file-storage.port';
 import { FileTypeDetector } from './application/ports/file-type-detector.port';
-import { ClassifyDocumentUseCase } from './application/use-cases/classify-document.use-case';
 import { GetDocumentUseCase } from './application/use-cases/get-document.use-case';
+import { ProcessDocumentUseCase } from './application/use-cases/process-document.use-case';
 import { UploadDocumentUseCase } from './application/use-cases/upload-document.use-case';
+import { SynchronousDocumentProcessingWorkflow } from './application/workflows/synchronous-document-processing.workflow';
 import { resolveFileStorageDriver } from './infrastructure/config/file-storage.config';
 import { resolveFileSizeLimitBytes } from './infrastructure/config/file-size-limit';
 import { FileTypePackageDetector } from './infrastructure/file-type/file-type-package-detector';
@@ -27,7 +28,7 @@ import { DocumentsController } from './presentation/documents.controller';
 @Module({
   imports: [
     AuthModule,
-    AiModule,
+    LlmModule,
     MulterModule.register({
       limits: { fileSize: resolveFileSizeLimitBytes() },
     }),
@@ -47,7 +48,7 @@ import { DocumentsController } from './presentation/documents.controller';
     },
     {
       provide: FILE_STORAGE,
-      useFactory: (localFileStorage: LocalFileStorage): IFileStorage =>
+      useFactory: (localFileStorage: LocalFileStorage): FileStorage =>
         resolveFileStorageDriver() === 'gcs'
           ? new GcsFileStorage()
           : localFileStorage,
@@ -58,18 +59,18 @@ import { DocumentsController } from './presentation/documents.controller';
       useValue: resolveFileSizeLimitBytes(),
     },
     {
-      provide: ClassifyDocumentUseCase,
+      provide: ProcessDocumentUseCase,
       useFactory: (
-        llmProvider: ILlmProvider,
+        documentAnalyzer: DocumentAnalyzer,
         documentRepository: DocumentRepository,
-        fileStorage: IFileStorage,
+        fileStorage: FileStorage,
       ) =>
-        new ClassifyDocumentUseCase(
-          llmProvider,
+        new ProcessDocumentUseCase(
+          documentAnalyzer,
           documentRepository,
           fileStorage,
         ),
-      inject: [LLM_PROVIDER, DOCUMENT_REPOSITORY, FILE_STORAGE],
+      inject: [DOCUMENT_ANALYZER, DOCUMENT_REPOSITORY, FILE_STORAGE],
     },
     {
       provide: GetDocumentUseCase,
@@ -81,25 +82,34 @@ import { DocumentsController } from './presentation/documents.controller';
       provide: UploadDocumentUseCase,
       useFactory: (
         documentRepository: DocumentRepository,
-        fileStorage: IFileStorage,
+        fileStorage: FileStorage,
         fileTypeDetector: FileTypeDetector,
         fileSizeLimitBytes: number,
-        classifyDocumentUseCase: ClassifyDocumentUseCase,
       ) =>
         new UploadDocumentUseCase(
           documentRepository,
           fileStorage,
           fileTypeDetector,
           fileSizeLimitBytes,
-          classifyDocumentUseCase,
         ),
       inject: [
         DOCUMENT_REPOSITORY,
         FILE_STORAGE,
         FILE_TYPE_DETECTOR,
         FILE_SIZE_LIMIT_BYTES,
-        ClassifyDocumentUseCase,
       ],
+    },
+    {
+      provide: SynchronousDocumentProcessingWorkflow,
+      useFactory: (
+        uploadDocument: UploadDocumentUseCase,
+        processDocument: ProcessDocumentUseCase,
+      ) =>
+        new SynchronousDocumentProcessingWorkflow(
+          uploadDocument,
+          processDocument,
+        ),
+      inject: [UploadDocumentUseCase, ProcessDocumentUseCase],
     },
   ],
 })

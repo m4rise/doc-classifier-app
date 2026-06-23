@@ -1,16 +1,15 @@
 import { randomUUID } from 'crypto';
-import { IFileStorage } from '../../../shared/interfaces/IFileStorage';
 import {
   FileTooLargeError,
   InvalidFileTypeError,
 } from '../../domain/errors/upload-document.errors';
 import { validateDocumentFileType } from '../../domain/services/document-file-policy';
 import {
-  DocumentDetails,
   DocumentRepository,
+  UploadedDocument,
 } from '../ports/document.repository.port';
+import { FileStorage } from '../ports/file-storage.port';
 import { FileTypeDetector } from '../ports/file-type-detector.port';
-import { ClassifyDocumentUseCase } from './classify-document.use-case';
 
 export interface UploadDocumentInput {
   userId: string;
@@ -19,15 +18,14 @@ export interface UploadDocumentInput {
   sizeBytes: number;
 }
 
-export type UploadDocumentOutput = DocumentDetails;
+export type UploadDocumentOutput = UploadedDocument;
 
 export class UploadDocumentUseCase {
   constructor(
     private readonly documentRepository: DocumentRepository,
-    private readonly fileStorage: IFileStorage,
+    private readonly fileStorage: FileStorage,
     private readonly fileTypeDetector: FileTypeDetector,
     private readonly fileSizeLimitBytes: number,
-    private readonly classifyDocumentUseCase: ClassifyDocumentUseCase,
     private readonly generateStorageKey: () => string = randomUUID,
   ) {}
 
@@ -47,15 +45,13 @@ export class UploadDocumentUseCase {
       validatedFileType.mimeType,
     );
 
-    const document = await this.documentRepository.createPending({
+    return this.documentRepository.createPending({
       userId: input.userId,
       originalName: input.originalName,
       mimeType: validatedFileType.mimeType,
       sizeBytes: input.sizeBytes,
       storageKey,
     });
-
-    return this.classifyDocumentUseCase.execute(document.id);
   }
 
   private assertFileSize(input: UploadDocumentInput): void {
