@@ -24,6 +24,10 @@ export interface ProcessingDocument {
   mimeType: string;
 }
 
+export interface CompletedProcessingResult extends DocumentAnalysisResult {
+  needsReview: boolean;
+}
+
 export interface DocumentDetails {
   id: string;
   status: DocumentStatus;
@@ -35,6 +39,7 @@ export interface DocumentDetails {
   summary: string | null;
   confidenceScore: number | null;
   language: string | null;
+  needsReview: boolean;
   errorMessage: string | null;
 }
 
@@ -49,7 +54,7 @@ export abstract class DocumentRepository {
 
   abstract completeProcessing(
     documentId: string,
-    result: DocumentAnalysisResult,
+    result: CompletedProcessingResult,
   ): Promise<DocumentDetails>;
 
   abstract failProcessing(

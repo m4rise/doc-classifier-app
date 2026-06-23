@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { DocumentStatus } from '../../../generated/prisma';
 import { PrismaService } from '../../../shared/infrastructure/database/prisma.service';
 import {
+  CompletedProcessingResult,
   CreatePendingDocumentInput,
   DocumentDetails,
   DocumentRepository,
@@ -21,6 +22,7 @@ interface PersistedDocumentDetails {
     summary: string | null;
     confidenceScore: number | null;
     language: string | null;
+    needsReview: boolean;
     errorMessage: string | null;
   } | null;
 }
@@ -38,6 +40,7 @@ const documentDetailsSelection = {
       summary: true,
       confidenceScore: true,
       language: true,
+      needsReview: true,
       errorMessage: true,
     },
   },
@@ -105,13 +108,7 @@ export class PrismaDocumentRepository extends DocumentRepository {
 
   completeProcessing(
     documentId: string,
-    result: {
-      extractedText: string;
-      classification: string;
-      summary: string;
-      confidenceScore: number;
-      language: string;
-    },
+    result: CompletedProcessingResult,
   ): Promise<DocumentDetails> {
     return this.prisma.$transaction(async (transaction) => {
       const transition = await transaction.document.updateMany({
@@ -168,6 +165,7 @@ export class PrismaDocumentRepository extends DocumentRepository {
           summary: null,
           confidenceScore: null,
           language: null,
+          needsReview: false,
           errorMessage,
         },
       });
@@ -211,6 +209,7 @@ function mapDocumentDetails(
     summary: document.processingResult?.summary ?? null,
     confidenceScore: document.processingResult?.confidenceScore ?? null,
     language: document.processingResult?.language ?? null,
+    needsReview: document.processingResult?.needsReview ?? false,
     errorMessage: document.processingResult?.errorMessage ?? null,
   };
 }

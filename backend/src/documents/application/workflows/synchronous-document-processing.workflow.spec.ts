@@ -24,6 +24,7 @@ describe('SynchronousDocumentProcessingWorkflow', () => {
       summary: 'Invoice summary',
       confidenceScore: 0.9,
       language: 'en',
+      needsReview: false,
       errorMessage: null,
     } satisfies DocumentDetails;
     const uploadDocument = {

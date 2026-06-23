@@ -75,6 +75,14 @@ lieu dans une seule transaction Prisma, aussi bien en cas de succès que
 d'échec. La revendication initiale `PENDING → PROCESSING` est conditionnelle et
 atomique afin d'empêcher deux appels concurrents de traiter le même document.
 
+Le drapeau `needsReview` fait partie du même résultat terminal. Il est calculé
+au moment du traitement à partir du `confidenceScore` et du seuil configuré,
+puis persisté dans `processing_results`. Le document racine conserve ainsi son
+rôle d'agrégat d'état (`PENDING/PROCESSING/DONE/FAILED`) tandis que les données
+et décisions issues de l'analyse restent propriétaires du résultat de
+traitement. Un futur worker asynchrone pourra produire exactement le même
+artefact persistant sans déplacer la règle métier dans la lecture HTTP.
+
 ### Composition applicative et frontière du fournisseur
 
 `UploadDocumentUseCase` et `ProcessDocumentUseCase` restent indépendants.
@@ -126,6 +134,9 @@ sources de vérité.
   évolution asynchrone durable.
 - Une future fonctionnalité de réessai devra définir si le résultat de
   traitement en relation un-à-un est remplacé ou versionné.
+
+- La décision de revue manuelle est figée à l'instant du traitement et ne
+  change pas rétroactivement si le seuil de confiance évolue plus tard.
 
 ### Limites de reprise acceptées pour le MVP
 

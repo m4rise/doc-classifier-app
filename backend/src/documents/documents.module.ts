@@ -3,6 +3,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { AuthModule } from '../auth/auth.module';
 import { LlmModule } from '../llm/llm.module';
 import {
+  CONFIDENCE_THRESHOLD,
   DOCUMENT_ANALYZER,
   DOCUMENT_REPOSITORY,
   FILE_SIZE_LIMIT_BYTES,
@@ -17,6 +18,7 @@ import { GetDocumentUseCase } from './application/use-cases/get-document.use-cas
 import { ProcessDocumentUseCase } from './application/use-cases/process-document.use-case';
 import { UploadDocumentUseCase } from './application/use-cases/upload-document.use-case';
 import { SynchronousDocumentProcessingWorkflow } from './application/workflows/synchronous-document-processing.workflow';
+import { resolveConfidenceThreshold } from './infrastructure/config/confidence-threshold.config';
 import { resolveFileStorageDriver } from './infrastructure/config/file-storage.config';
 import { resolveFileSizeLimitBytes } from './infrastructure/config/file-size-limit';
 import { FileTypePackageDetector } from './infrastructure/file-type/file-type-package-detector';
@@ -59,18 +61,29 @@ import { DocumentsController } from './presentation/documents.controller';
       useValue: resolveFileSizeLimitBytes(),
     },
     {
+      provide: CONFIDENCE_THRESHOLD,
+      useValue: resolveConfidenceThreshold(),
+    },
+    {
       provide: ProcessDocumentUseCase,
       useFactory: (
         documentAnalyzer: DocumentAnalyzer,
         documentRepository: DocumentRepository,
         fileStorage: FileStorage,
+        confidenceThreshold: number,
       ) =>
         new ProcessDocumentUseCase(
           documentAnalyzer,
           documentRepository,
           fileStorage,
+          confidenceThreshold,
         ),
-      inject: [DOCUMENT_ANALYZER, DOCUMENT_REPOSITORY, FILE_STORAGE],
+      inject: [
+        DOCUMENT_ANALYZER,
+        DOCUMENT_REPOSITORY,
+        FILE_STORAGE,
+        CONFIDENCE_THRESHOLD,
+      ],
     },
     {
       provide: GetDocumentUseCase,

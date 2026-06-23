@@ -17,6 +17,7 @@ describe('GetDocumentUseCase', () => {
     summary: 'Invoice for professional services.',
     confidenceScore: 0.94,
     language: 'en',
+    needsReview: false,
     errorMessage: null,
   };
 
