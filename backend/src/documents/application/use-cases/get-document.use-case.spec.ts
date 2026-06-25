@@ -31,6 +31,7 @@ describe('GetDocumentUseCase', () => {
       createPending: jest.fn(),
       failProcessing: jest.fn(),
       findByIdForUser,
+      listForUser: jest.fn(),
     };
 
     return {

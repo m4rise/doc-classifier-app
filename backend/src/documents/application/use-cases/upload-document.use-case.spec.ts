@@ -35,6 +35,7 @@ describe('UploadDocumentUseCase', () => {
       createPending,
       failProcessing: jest.fn(),
       findByIdForUser: jest.fn(),
+      listForUser: jest.fn(),
     };
     const upload: jest.MockedFunction<FileStorage['upload']> = jest.fn(() => {
       calls.push('upload');

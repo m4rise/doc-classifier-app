@@ -5,7 +5,10 @@ import {
   CompletedProcessingResult,
   CreatePendingDocumentInput,
   DocumentDetails,
+  DocumentListItem,
   DocumentRepository,
+  ListDocumentsRepositoryInput,
+  ListDocumentsRepositoryResult,
   ProcessingDocument,
   UploadedDocument,
 } from '../../application/ports/document.repository.port';
@@ -27,6 +30,20 @@ interface PersistedDocumentDetails {
   } | null;
 }
 
+interface PersistedDocumentListItem {
+  id: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  status: DocumentStatus;
+  createdAt: Date;
+  processingResult: {
+    classification: string | null;
+    confidenceScore: number | null;
+    needsReview: boolean;
+  } | null;
+}
+
 const documentDetailsSelection = {
   id: true,
   originalName: true,
@@ -42,6 +59,22 @@ const documentDetailsSelection = {
       language: true,
       needsReview: true,
       errorMessage: true,
+    },
+  },
+} as const;
+
+const documentListItemSelection = {
+  id: true,
+  originalName: true,
+  mimeType: true,
+  sizeBytes: true,
+  status: true,
+  createdAt: true,
+  processingResult: {
+    select: {
+      classification: true,
+      confidenceScore: true,
+      needsReview: true,
     },
   },
 } as const;
@@ -193,6 +226,50 @@ export class PrismaDocumentRepository extends DocumentRepository {
 
     return document ? mapDocumentDetails(document) : null;
   }
+
+  listForUser(
+    input: ListDocumentsRepositoryInput,
+  ): Promise<ListDocumentsRepositoryResult | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      const cursor = input.cursor
+        ? {
+            userId_createdAt_id: {
+              userId: input.userId,
+              createdAt: input.cursor.createdAt,
+              id: input.cursor.id,
+            },
+          }
+        : undefined;
+
+      if (cursor) {
+        const cursorDocument = await transaction.document.findUnique({
+          where: cursor,
+          select: { id: true },
+        });
+
+        if (!cursorDocument) {
+          return null;
+        }
+      }
+
+      const documents = await transaction.document.findMany({
+        where: { userId: input.userId },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+        take: input.limit + 1,
+        cursor,
+        skip: cursor ? 1 : undefined,
+        select: documentListItemSelection,
+      });
+      const total = await transaction.document.count({
+        where: { userId: input.userId },
+      });
+
+      return {
+        documents: documents.map(mapDocumentListItem),
+        total,
+      };
+    });
+  }
 }
 
 function mapDocumentDetails(
@@ -211,5 +288,21 @@ function mapDocumentDetails(
     language: document.processingResult?.language ?? null,
     needsReview: document.processingResult?.needsReview ?? false,
     errorMessage: document.processingResult?.errorMessage ?? null,
+  };
+}
+
+function mapDocumentListItem(
+  document: PersistedDocumentListItem,
+): DocumentListItem {
+  return {
+    id: document.id,
+    status: document.status,
+    originalName: document.originalName,
+    mimeType: document.mimeType,
+    sizeBytes: document.sizeBytes,
+    classification: document.processingResult?.classification ?? null,
+    confidenceScore: document.processingResult?.confidenceScore ?? null,
+    needsReview: document.processingResult?.needsReview ?? false,
+    createdAt: document.createdAt,
   };
 }
