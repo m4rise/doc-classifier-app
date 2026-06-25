@@ -1,5 +1,30 @@
 import { z } from 'zod';
 
+/**
+ * Central backend configuration contract.
+ *
+ * Precedence is owned by `@nestjs/config`:
+ *
+ * 1. Existing `process.env` values, such as Cloud Run, CI, shell exports, or
+ *    values injected by the test bootstrap, have highest priority.
+ * 2. Values from the default `.env` file fill keys that are not already present
+ *    in `process.env`.
+ * 3. Zod defaults below apply only when a key is absent or blank after trimming.
+ * 4. Invalid explicit values fail startup instead of silently falling back.
+ *
+ * This file is intentionally broad: it models the current backend env
+ * inventory so future PRs can migrate feature-level resolvers into typed config
+ * without inventing new ad hoc parsers.
+ */
+
+/**
+ * Runtime defaults used when an env key is absent or blank.
+ *
+ * These defaults mirror the existing `.env.example`, deployment workflow, and
+ * resolver behavior. They are not a license to add new policy constants here:
+ * Group B of the drift remediation should move feature runtime policies behind
+ * this config contract deliberately.
+ */
 const DEFAULT_PORT = 3000;
 const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
 const DEFAULT_GEMINI_TIMEOUT_MS = 8_000;
@@ -24,6 +49,13 @@ const DEFAULT_OTEL_RESOURCE_ATTRIBUTES =
 export type AppEnvironment = 'development' | 'test' | 'staging' | 'production';
 export type FileStorageDriver = 'local' | 'gcs';
 
+/**
+ * Typed shape consumed through `ConfigService<AppConfiguration, true>`.
+ *
+ * The shape is grouped by backend concern rather than by raw env key so
+ * consumers can ask for `app`, `rateLimit`, `documents.storage`, etc. and avoid
+ * scattering env-key knowledge through modules.
+ */
 export interface AppConfiguration {
   app: {
     nodeEnv: AppEnvironment;
@@ -99,6 +131,10 @@ export interface AppConfiguration {
   };
 }
 
+/**
+ * NODE_ENV accepts the environments used by local dev, CI, staging, and
+ * production. Blank values are treated as absent so the local default applies.
+ */
 const appEnvironmentSchema = z.preprocess(
   cleanString,
   z
@@ -106,6 +142,10 @@ const appEnvironmentSchema = z.preprocess(
     .default('development'),
 );
 
+/**
+ * FILE_STORAGE_DRIVER is normalized case-insensitively because existing
+ * resolver tests accepted values such as `GCS` and `local`.
+ */
 const fileStorageDriverSchema = z.preprocess(
   (value) => {
     const cleaned = cleanString(value);
@@ -114,6 +154,14 @@ const fileStorageDriverSchema = z.preprocess(
   z.enum(['local', 'gcs']).default('local'),
 );
 
+/**
+ * Flat env-key schema used as the single validation gate.
+ *
+ * Zod receives the merged raw environment from Nest's `validate` hook. Numeric
+ * fields are coerced only after trimming; malformed or out-of-range explicit
+ * values fail validation. Optional secrets stay optional for local/test but
+ * become required in deployed environments below.
+ */
 const environmentSchema = z
   .object({
     NODE_ENV: appEnvironmentSchema,
@@ -225,22 +273,42 @@ const environmentSchema = z
 
 type EnvironmentVariables = z.infer<typeof environmentSchema>;
 
+/**
+ * Config factory registered with `ConfigModule.forRoot({ load: [...] })`.
+ *
+ * Nest first validates the merged `.env` + `process.env` input, then populates
+ * missing `process.env` keys from that validated result. This factory reuses
+ * the same parser against `process.env` so the injected config object and the
+ * validation gate cannot drift apart.
+ */
 export function loadAppConfig(): AppConfiguration {
   return toAppConfiguration(parseEnvironmentVariables(process.env));
 }
 
+/**
+ * Validation hook registered with `ConfigModule.forRoot({ validate })`.
+ *
+ * Returning the parsed flat object lets Nest expose the validated raw env values
+ * while throwing a readable startup error when any rule fails.
+ */
 export function validateEnvironment(
   environment: Record<string, unknown>,
 ): Record<string, unknown> {
   return parseEnvironmentVariables(environment);
 }
 
+/**
+ * Test-facing parser that bypasses Nest and returns the typed grouped config.
+ */
 export function parseEnvironment(
   environment: Record<string, unknown>,
 ): AppConfiguration {
   return toAppConfiguration(parseEnvironmentVariables(environment));
 }
 
+/**
+ * Parse and format Zod validation errors consistently for startup and tests.
+ */
 function parseEnvironmentVariables(
   environment: Record<string, unknown>,
 ): EnvironmentVariables {
@@ -255,6 +323,9 @@ function parseEnvironmentVariables(
   return result.data;
 }
 
+/**
+ * Converts validated env keys into the grouped application contract.
+ */
 function toAppConfiguration(env: EnvironmentVariables): AppConfiguration {
   return {
     app: {
@@ -332,6 +403,9 @@ function toAppConfiguration(env: EnvironmentVariables): AppConfiguration {
   };
 }
 
+/**
+ * Positive integer env parser with optional lower and upper bounds.
+ */
 function integerEnv(
   defaultValue: number,
   minValue = 1,
@@ -343,6 +417,9 @@ function integerEnv(
   );
 }
 
+/**
+ * Numeric env parser for bounded decimal values such as confidence thresholds.
+ */
 function numericEnv(defaultValue: number, minValue: number, maxValue: number) {
   return z.preprocess(
     cleanString,
@@ -350,14 +427,23 @@ function numericEnv(defaultValue: number, minValue: number, maxValue: number) {
   );
 }
 
+/**
+ * Required-after-default string parser for non-secret configurable values.
+ */
 function trimmedStringWithDefault(defaultValue: string) {
   return z.preprocess(cleanString, z.string().min(1).default(defaultValue));
 }
 
+/**
+ * Optional string parser for values that may be absent locally or in tests.
+ */
 function optionalTrimmedString() {
   return z.preprocess(cleanString, z.string().min(1).optional());
 }
 
+/**
+ * Normalizes whitespace-only env values to absence.
+ */
 function cleanString(value: unknown): unknown {
   if (typeof value !== 'string') {
     return value;
@@ -367,6 +453,9 @@ function cleanString(value: unknown): unknown {
   return trimmedValue.length > 0 ? trimmedValue : undefined;
 }
 
+/**
+ * Adds a custom Zod issue when an environment-specific invariant is missing.
+ */
 function requireConfigured(
   ctx: z.RefinementCtx,
   value: string | undefined,
@@ -384,6 +473,9 @@ function requireConfigured(
   });
 }
 
+/**
+ * Keeps startup errors compact while still naming every invalid env key.
+ */
 function formatZodIssues(error: z.ZodError): string {
   return error.issues
     .map((issue) => {
