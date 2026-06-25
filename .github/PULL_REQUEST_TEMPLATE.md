@@ -52,7 +52,9 @@
 
 ## Risks / Points to watch (optional)
 
-<!-- List potential risks, impacts, or points to monitor during/after merge. -->
+<!-- List potential risks, impacts, or points to monitor during/after merge.
+If a risk accepts deferred architecture, security, config, data, or operational debt,
+link the follow-up issue here or explain why no follow-up is needed. -->
 
 ## Testing
 

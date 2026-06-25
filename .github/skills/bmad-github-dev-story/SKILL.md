@@ -70,6 +70,24 @@ If AC or DoD are missing from GitHub, stop and ask the user before implementatio
 9. Compare the final diff against every AC and DoD item.
 10. Prepare PR-ready notes with summary, tests run, risks, and `Closes #<issue-number>`.
 
+## Architecture Drift Guardrail
+
+Before adding new backend patterns, scan nearby code and recent PR risk notes for
+existing drift. Do not introduce new ad hoc env resolvers, runtime policy
+constants, duplicated regexes, or broad unknown-input guards when a centralized
+config/validation path already exists or is clearly due. If the story must keep
+the current pattern for scope reasons, call that out in `Risks / Points to watch`
+and link or recommend a follow-up issue.
+
+Prefer:
+
+- typed NestJS configuration for runtime tunables, secrets, TTLs, thresholds,
+  limits, and provider options;
+- local or shared schema/type-guard helpers that return predicates when they
+  narrow unknown data;
+- explicit follow-up issues for temporary compromises documented in ADRs or PR
+  risk sections.
+
 When writing final PR body content, keep GitHub references as plain text rather than inline code. Do not wrap issue numbers, PR numbers, branch names, closing keywords, or `Related Work` values in backticks, because that disables GitHub autolinking.
 
 Keep the `bmad-dev-story` discipline even when using the more flexible `bmad-quick-dev` mental model: proceed sequentially, avoid scope creep, update tests with code, verify all AC, and leave a clear implementation status.

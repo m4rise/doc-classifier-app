@@ -252,6 +252,9 @@ Use scopes allowed by `commitlint.config.cjs`:
 - List the AC/tasks actually addressed.
 - Complete DoR/DoD checklists honestly. Mark non-applicable items only when the
   PR body explains why they do not apply.
+- When `Risks / Points to watch` records deferred architecture, config,
+  security, data, or operational debt, link the follow-up issue or explain why
+  no follow-up is needed.
 - Add reviewers when appropriate.
 - Ensure the PR body contains a closing keyword for the primary issue.
 
