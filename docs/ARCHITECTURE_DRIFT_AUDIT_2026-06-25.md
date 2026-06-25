@@ -363,6 +363,26 @@ technical debt issues.
 - `docs(adr): amend signed URL TTL and async-processing revisit triggers`
 - `chore(github): require PR risk notes to link follow-up issues`
 
+## Follow-Up PR Grouping
+
+Use this grouping when opening future remediation issues or PRs from this
+audit. Keep the first config PR scoped to the foundation; do not fold the
+runtime policy migration into it unless the GitHub issue explicitly expands the
+contract.
+
+| Group | Scope | Drift Coverage |
+| --- | --- | --- |
+| A | Config foundation: add `@nestjs/config`, Zod validation, typed config namespaces, and bootstrap consumption for app-level config. | DRIFT-001 plus the foundation portion of DRIFT-002 and DRIFT-003 |
+| B | Runtime policy migration: move TTLs, thresholds, limits, Prisma pool, throttling, Gemini, and observability values behind typed config. | DRIFT-002 plus remaining env parsing from DRIFT-003 |
+| C | Document cursor codec extraction before Story 4.6 search/filter/sort work. | DRIFT-004 |
+| D | Shared UUID, email, Prisma unique-constraint, and Passport JWT error helpers. | DRIFT-003 |
+| E | ADR amendments for signed URL TTL policy, async-processing revisit triggers, and linked follow-up issues. | DRIFT-008 |
+| F | Codecov policy clarification: decide advisory vs gating behavior and PR expectations. | DRIFT-007 |
+
+`DRIFT-005` and `DRIFT-006` remain valid follow-up tracks, but they should not
+be bundled into the config foundation PR unless a new issue explicitly asks for
+that broader scope.
+
 ## Notes For Future Agents
 
 - Do not add new `resolve*` env helpers unless they are part of the centralized

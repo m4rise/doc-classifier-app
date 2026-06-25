@@ -12,6 +12,11 @@ type NamedThrottleOptions = Record<
   }
 >;
 
+export interface GlobalThrottleConfig {
+  limit: number;
+  ttlSeconds: number;
+}
+
 const DEFAULT_GLOBAL_TTL_SECONDS = 60;
 const DEFAULT_GLOBAL_LIMIT = 100;
 const DEFAULT_AUTH_TTL_SECONDS = 60;
@@ -21,19 +26,26 @@ const DEFAULT_AUTH_SESSION_LIMIT = 60;
 const DEFAULT_UPLOAD_LIMIT = 10;
 const MAX_TIMEOUT_SECONDS = 2_147_483;
 
-export function createThrottlerModuleOptions(): ThrottlerModuleOptions {
+export function createThrottlerModuleOptions(
+  config?: GlobalThrottleConfig,
+): ThrottlerModuleOptions {
+  const ttlSeconds =
+    config?.ttlSeconds ??
+    readPositiveIntegerEnv(
+      'THROTTLE_TTL',
+      DEFAULT_GLOBAL_TTL_SECONDS,
+      MAX_TIMEOUT_SECONDS,
+    );
+  const limit =
+    config?.limit ??
+    readPositiveIntegerEnv('THROTTLE_LIMIT', DEFAULT_GLOBAL_LIMIT);
+
   return {
     errorMessage: 'Too Many Requests',
     throttlers: [
       {
-        ttl: secondsToMilliseconds(
-          readPositiveIntegerEnv(
-            'THROTTLE_TTL',
-            DEFAULT_GLOBAL_TTL_SECONDS,
-            MAX_TIMEOUT_SECONDS,
-          ),
-        ),
-        limit: readPositiveIntegerEnv('THROTTLE_LIMIT', DEFAULT_GLOBAL_LIMIT),
+        ttl: secondsToMilliseconds(ttlSeconds),
+        limit,
       },
     ],
   };
