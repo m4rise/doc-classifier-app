@@ -88,9 +88,11 @@ import { DocumentsController } from './presentation/documents.controller';
     },
     {
       provide: GetDocumentUseCase,
-      useFactory: (documentRepository: DocumentRepository) =>
-        new GetDocumentUseCase(documentRepository),
-      inject: [DOCUMENT_REPOSITORY],
+      useFactory: (
+        documentRepository: DocumentRepository,
+        fileStorage: FileStorage,
+      ) => new GetDocumentUseCase(documentRepository, fileStorage),
+      inject: [DOCUMENT_REPOSITORY, FILE_STORAGE],
     },
     {
       provide: ListDocumentsUseCase,

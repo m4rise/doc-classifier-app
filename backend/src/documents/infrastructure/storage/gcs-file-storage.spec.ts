@@ -97,11 +97,15 @@ describe('GcsFileStorage', () => {
     );
   });
 
-  it('rejects signed URL TTLs outside the supported range', async () => {
+  it('rejects signed URL TTLs outside the 900-second supported range', async () => {
     const { fileStorage, getSignedUrl } = createStorage();
 
     await expect(fileStorage.getSignedUrl(storageKey, 0)).rejects.toThrow(
-      'Signed URL TTL must be between 1 second and 7 days',
+      'Signed URL TTL must be between 1 and 900 seconds',
+    );
+
+    await expect(fileStorage.getSignedUrl(storageKey, 901)).rejects.toThrow(
+      'Signed URL TTL must be between 1 and 900 seconds',
     );
 
     expect(getSignedUrl).not.toHaveBeenCalled();

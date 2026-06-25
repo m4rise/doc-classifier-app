@@ -43,6 +43,20 @@ export interface DocumentDetails {
   errorMessage: string | null;
 }
 
+export interface DocumentDetail extends DocumentDetails {
+  storageKey: string;
+  createdAt: Date;
+  updatedAt: Date;
+  processedAt: Date | null;
+}
+
+export interface DocumentDetailResult extends Omit<
+  DocumentDetail,
+  'storageKey'
+> {
+  downloadUrl: string;
+}
+
 export interface DocumentListCursor {
   id: string;
   createdAt: Date;
@@ -93,7 +107,7 @@ export abstract class DocumentRepository {
   abstract findByIdForUser(
     documentId: string,
     userId: string,
-  ): Promise<DocumentDetails | null>;
+  ): Promise<DocumentDetail | null>;
 
   /**
    * Returns at most `limit + 1` owner-scoped documents for lookahead.
