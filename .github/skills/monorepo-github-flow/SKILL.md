@@ -205,6 +205,11 @@ When generating the final issue or PR body, preserve GitHub autolinking: do not 
 - The PR has at least one valid label, relevant reviewers when appropriate, and all CI checks pass.
 - For BMAD story issues, PR traceability points to the GitHub issue contract and does not let local BMAD artifacts override it.
 - For GitHub-only work, traceability is issue -> branch -> commits -> PR -> merge, with no BMAD or back-sync dependency.
+- For architecture, config, security, data, or operational debt, the PR risk
+  section links a follow-up issue or explains why no follow-up is needed.
+- For backend changes, avoid introducing new ad hoc env resolvers, duplicated
+  validation regexes, broad unknown-input guards, or runtime policy constants
+  when the repository already has or clearly needs a centralized pattern.
 
 ---
 
