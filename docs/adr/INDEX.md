@@ -38,6 +38,7 @@ Format : [MADR](https://adr.github.io/madr/) - chaque ADR documente le contexte,
 | [ADR-SEC-003](./ADR-SEC-003-refresh-token-revocation.md)  | Révocation refresh token - stockage DB, rotation, `jti`, Argon2id | Accepted |
 | [ADR-SEC-004](./ADR-SEC-004-query-safety.md)              | Sécurité requêtes SQL - `$queryRaw` + règle ESLint                | Accepted |
 | [ADR-SEC-005](./ADR-SEC-005-rate-limiting.md)             | Limitation de débit des endpoints d'authentification              | Accepted |
+| [ADR-SEC-006](./ADR-SEC-006-document-signed-url-ttl.md)   | Document download signed URL TTL                                  | Accepted |
 
 ---
 

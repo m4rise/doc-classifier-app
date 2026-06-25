@@ -31,6 +31,7 @@ import {
   FileTooLargeError,
   InvalidFileTypeError,
 } from '../domain/errors/upload-document.errors';
+import { DocumentDetailResponseDto } from './dto/document-detail-response.dto';
 import { DocumentResponseDto } from './dto/document-response.dto';
 import { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
 import { ListDocumentsResponseDto } from './dto/list-documents-response.dto';
@@ -113,7 +114,7 @@ export class DocumentsController {
   async getById(
     @Req() req: AuthenticatedRequest,
     @Param('id') documentId: string,
-  ): Promise<DocumentResponseDto> {
+  ): Promise<DocumentDetailResponseDto> {
     try {
       return await this.getDocumentUseCase.execute(documentId, req.user.userId);
     } catch (error) {

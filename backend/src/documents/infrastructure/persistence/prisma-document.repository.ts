@@ -3,6 +3,7 @@ import { DocumentStatus } from '../../../generated/prisma';
 import { PrismaService } from '../../../shared/infrastructure/database/prisma.service';
 import {
   CompletedProcessingResult,
+  DocumentDetail,
   CreatePendingDocumentInput,
   DocumentDetails,
   DocumentListItem,
@@ -28,6 +29,17 @@ interface PersistedDocumentDetails {
     needsReview: boolean;
     errorMessage: string | null;
   } | null;
+}
+
+interface PersistedDocumentDetail extends PersistedDocumentDetails {
+  storageKey: string;
+  createdAt: Date;
+  updatedAt: Date;
+  processingResult:
+    | (NonNullable<PersistedDocumentDetails['processingResult']> & {
+        processedAt: Date;
+      })
+    | null;
 }
 
 interface PersistedDocumentListItem {
@@ -75,6 +87,29 @@ const documentListItemSelection = {
       classification: true,
       confidenceScore: true,
       needsReview: true,
+    },
+  },
+} as const;
+
+const documentDetailSelection = {
+  id: true,
+  originalName: true,
+  mimeType: true,
+  sizeBytes: true,
+  storageKey: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  processingResult: {
+    select: {
+      extractedText: true,
+      classification: true,
+      summary: true,
+      confidenceScore: true,
+      language: true,
+      needsReview: true,
+      errorMessage: true,
+      processedAt: true,
     },
   },
 } as const;
@@ -215,16 +250,16 @@ export class PrismaDocumentRepository extends DocumentRepository {
   async findByIdForUser(
     documentId: string,
     userId: string,
-  ): Promise<DocumentDetails | null> {
+  ): Promise<DocumentDetail | null> {
     const document = await this.prisma.document.findFirst({
       where: {
         id: documentId,
         userId,
       },
-      select: documentDetailsSelection,
+      select: documentDetailSelection,
     });
 
-    return document ? mapDocumentDetails(document) : null;
+    return document ? mapDocumentDetail(document) : null;
   }
 
   listForUser(
@@ -288,6 +323,16 @@ function mapDocumentDetails(
     language: document.processingResult?.language ?? null,
     needsReview: document.processingResult?.needsReview ?? false,
     errorMessage: document.processingResult?.errorMessage ?? null,
+  };
+}
+
+function mapDocumentDetail(document: PersistedDocumentDetail): DocumentDetail {
+  return {
+    ...mapDocumentDetails(document),
+    storageKey: document.storageKey,
+    createdAt: document.createdAt,
+    updatedAt: document.updatedAt,
+    processedAt: document.processingResult?.processedAt ?? null,
   };
 }
 

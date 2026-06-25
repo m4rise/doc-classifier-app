@@ -1,5 +1,6 @@
 import { rm, stat } from 'fs/promises';
 import { join } from 'path';
+import { pathToFileURL } from 'url';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
@@ -30,6 +31,13 @@ interface UploadDocumentResponseBody {
   language: string | null;
   needsReview: boolean;
   errorMessage: string | null;
+}
+
+interface DocumentDetailResponseBody extends UploadDocumentResponseBody {
+  createdAt: string;
+  updatedAt: string;
+  processedAt: string | null;
+  downloadUrl: string;
 }
 
 interface DocumentListItemResponseBody {
@@ -316,7 +324,17 @@ describe('DocumentsController integration', () => {
       .set('Authorization', `Bearer ${accessToken}`)
       .expect(200)
       .expect((res: HttpResponseBody) => {
-        expect(res.body).toEqual(body);
+        const detail = res.body as DocumentDetailResponseBody;
+        expect(detail).toMatchObject(body);
+        expect(detail.createdAt).toEqual(expect.any(String));
+        expect(detail.updatedAt).toEqual(expect.any(String));
+        expect(detail.processedAt).toEqual(expect.any(String));
+        expect(detail.downloadUrl).toBe(
+          pathToFileURL(
+            join(uploadDir, persistedDocument?.storageKey ?? 'missing'),
+          ).toString(),
+        );
+        expect(detail).not.toHaveProperty('storageKey');
       });
   });
 
@@ -690,6 +708,17 @@ describe('DocumentsController integration', () => {
     expect(persistedDocument?.processingResult?.errorMessage).not.toContain(
       'raw provider',
     );
+
+    await request(app.getHttpServer())
+      .get(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        const detail = res.body as DocumentDetailResponseBody;
+        expect(detail.status).toBe('FAILED');
+        expect(detail.errorMessage).toBe('LLM analysis timed out');
+        expect(detail.downloadUrl).toEqual(expect.any(String));
+      });
   });
 
   it.each([

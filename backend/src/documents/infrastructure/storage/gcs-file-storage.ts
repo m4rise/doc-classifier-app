@@ -37,7 +37,7 @@ interface GcsSignedUrlOptions {
   version: 'v4';
 }
 
-const MAX_SIGNED_URL_TTL_SECONDS = 7 * 24 * 60 * 60;
+const MAX_SIGNED_URL_TTL_SECONDS = 900;
 
 @Injectable()
 export class GcsFileStorage implements FileStorage {
@@ -103,7 +103,7 @@ function validateSignedUrlTtl(ttlSeconds: number): number {
     ttlSeconds <= 0 ||
     ttlSeconds > MAX_SIGNED_URL_TTL_SECONDS
   ) {
-    throw new Error('Signed URL TTL must be between 1 second and 7 days');
+    throw new Error('Signed URL TTL must be between 1 and 900 seconds');
   }
 
   return ttlSeconds;
