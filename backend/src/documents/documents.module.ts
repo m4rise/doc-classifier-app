@@ -15,6 +15,7 @@ import { DocumentRepository } from './application/ports/document.repository.port
 import { FileStorage } from './application/ports/file-storage.port';
 import { FileTypeDetector } from './application/ports/file-type-detector.port';
 import { GetDocumentUseCase } from './application/use-cases/get-document.use-case';
+import { ListDocumentsUseCase } from './application/use-cases/list-documents.use-case';
 import { ProcessDocumentUseCase } from './application/use-cases/process-document.use-case';
 import { UploadDocumentUseCase } from './application/use-cases/upload-document.use-case';
 import { SynchronousDocumentProcessingWorkflow } from './application/workflows/synchronous-document-processing.workflow';
@@ -89,6 +90,12 @@ import { DocumentsController } from './presentation/documents.controller';
       provide: GetDocumentUseCase,
       useFactory: (documentRepository: DocumentRepository) =>
         new GetDocumentUseCase(documentRepository),
+      inject: [DOCUMENT_REPOSITORY],
+    },
+    {
+      provide: ListDocumentsUseCase,
+      useFactory: (documentRepository: DocumentRepository) =>
+        new ListDocumentsUseCase(documentRepository),
       inject: [DOCUMENT_REPOSITORY],
     },
     {

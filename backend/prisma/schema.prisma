@@ -93,6 +93,7 @@ model Document {
   updatedAt        DateTime          @updatedAt
   processingResult ProcessingResult?
 
+  @@unique([userId, createdAt, id])
   @@index([userId])
   @@map("documents")
 }

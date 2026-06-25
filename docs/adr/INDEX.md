@@ -47,6 +47,7 @@ Format : [MADR](https://adr.github.io/madr/) - chaque ADR documente le contexte,
 | ------------------------------------------------------------ | ----------------------------------------- | -------- |
 | [ADR-DATA-001](./ADR-DATA-001-prisma-migrations-strategy.md) | Stratégie migrations Prisma sur Cloud Run | Accepted |
 | [ADR-DATA-002](./ADR-DATA-002-prisma-version-7.md)           | Adoption de Prisma 7 avec driver adapter  | Accepted |
+| [ADR-DATA-003](./ADR-DATA-003-stable-document-cursor-pagination.md) | Pagination stable des documents par curseur composite | Accepted |
 
 ---
 

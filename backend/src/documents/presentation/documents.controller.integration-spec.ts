@@ -32,6 +32,24 @@ interface UploadDocumentResponseBody {
   errorMessage: string | null;
 }
 
+interface DocumentListItemResponseBody {
+  id: string;
+  status: string;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  classification: string | null;
+  confidenceScore: number | null;
+  needsReview: boolean;
+  createdAt: string;
+}
+
+interface ListDocumentsResponseBody {
+  data: DocumentListItemResponseBody[];
+  nextCursor: string | null;
+  total: number;
+}
+
 interface HttpResponseBody {
   body: unknown;
 }
@@ -52,6 +70,10 @@ function asErrorMessageBody(value: unknown): { message?: unknown } {
   }
 
   return {};
+}
+
+function encodeCursorPayload(payload: object): string {
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64');
 }
 
 function createValidPdfBuffer(): Buffer {
@@ -148,6 +170,36 @@ describe('DocumentsController integration', () => {
     language: 'en',
   };
   const analyze = jest.fn(() => Promise.resolve(successfulAnalysis));
+
+  async function createCompletedDocument(
+    userId: string,
+    sequence: number,
+    createdAt: Date,
+    id?: string,
+  ) {
+    return prisma.document.create({
+      data: {
+        ...(id ? { id } : {}),
+        userId,
+        originalName: `document-${sequence}.pdf`,
+        mimeType: 'application/pdf',
+        sizeBytes: 100 + sequence,
+        status: DocumentStatus.DONE,
+        createdAt,
+        processingResult: {
+          create: {
+            extractedText: `Document ${sequence}`,
+            classification: sequence % 2 === 0 ? 'invoice' : 'contract',
+            summary: `Summary ${sequence}`,
+            confidenceScore: Number((0.8 + sequence / 100).toFixed(2)),
+            language: 'en',
+            needsReview: sequence % 3 === 0,
+            errorMessage: null,
+          },
+        },
+      },
+    });
+  }
 
   beforeAll(async () => {
     process.env.FILE_STORAGE_DRIVER = 'local';
@@ -293,6 +345,254 @@ describe('DocumentsController integration', () => {
       .get(`/api/v1/documents/${documentId}`)
       .set('Authorization', `Bearer ${otherUser.accessToken}`)
       .expect(404);
+  });
+
+  it('GET /api/v1/documents lists only owner documents with essential metadata', async () => {
+    const owner = await registerAndLogin(
+      app,
+      `document-list-owner.${Date.now()}@example.com`,
+    );
+    const otherUser = await registerAndLogin(
+      app,
+      `document-list-other.${Date.now()}@example.com`,
+    );
+    const older = await createCompletedDocument(
+      owner.user.id,
+      1,
+      new Date('2026-06-24T08:00:00.000Z'),
+    );
+    const newer = await createCompletedDocument(
+      owner.user.id,
+      2,
+      new Date('2026-06-24T09:00:00.000Z'),
+    );
+    await createCompletedDocument(
+      otherUser.user.id,
+      3,
+      new Date('2026-06-24T10:00:00.000Z'),
+    );
+
+    await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .expect(200)
+      .expect((res: HttpResponseBody) => {
+        const body = res.body as ListDocumentsResponseBody;
+        expect(body.total).toBe(2);
+        expect(body.nextCursor).toBeNull();
+        expect(body.data.map((document) => document.id)).toEqual([
+          newer.id,
+          older.id,
+        ]);
+        expect(body.data[0]).toEqual({
+          id: newer.id,
+          status: 'DONE',
+          originalName: 'document-2.pdf',
+          mimeType: 'application/pdf',
+          sizeBytes: 102,
+          classification: 'invoice',
+          confidenceScore: 0.82,
+          needsReview: false,
+          createdAt: '2026-06-24T09:00:00.000Z',
+        });
+      });
+  });
+
+  it('paginates all owner documents without duplicates and preserves total', async () => {
+    const { user, accessToken } = await registerAndLogin(
+      app,
+      `document-pagination.${Date.now()}@example.com`,
+    );
+    const createdDocuments = await Promise.all(
+      Array.from({ length: 12 }, (_, index) =>
+        createCompletedDocument(
+          user.id,
+          index,
+          new Date(Date.UTC(2026, 5, 24, 0, index)),
+        ),
+      ),
+    );
+    const expectedIds = [...createdDocuments]
+      .sort(
+        (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
+      )
+      .map((document) => document.id);
+
+    const firstResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .query({ limit: 5 })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const firstPage = firstResponse.body as ListDocumentsResponseBody;
+
+    expect(firstPage.total).toBe(12);
+    expect(firstPage.data).toHaveLength(5);
+    expect(firstPage.nextCursor).toEqual(expect.any(String));
+
+    const secondResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .query({ limit: 5, cursor: firstPage.nextCursor })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const secondPage = secondResponse.body as ListDocumentsResponseBody;
+
+    expect(secondPage.total).toBe(12);
+    expect(secondPage.data).toHaveLength(5);
+    expect(secondPage.nextCursor).toEqual(expect.any(String));
+
+    const thirdResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .query({ limit: 5, cursor: secondPage.nextCursor })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const thirdPage = thirdResponse.body as ListDocumentsResponseBody;
+
+    expect(thirdPage.total).toBe(12);
+    expect(thirdPage.data).toHaveLength(2);
+    expect(thirdPage.nextCursor).toBeNull();
+
+    const returnedIds = [firstPage, secondPage, thirdPage].flatMap((page) =>
+      page.data.map((document) => document.id),
+    );
+    expect(returnedIds).toEqual(expectedIds);
+    expect(new Set(returnedIds).size).toBe(12);
+  });
+
+  it('uses id descending as a deterministic tie-breaker for identical createdAt values', async () => {
+    const { user, accessToken } = await registerAndLogin(
+      app,
+      `document-pagination-tie.${Date.now()}@example.com`,
+    );
+    const tiedCreatedAt = new Date('2026-06-24T12:00:00.000Z');
+    const lowerIdDocument = await createCompletedDocument(
+      user.id,
+      1,
+      tiedCreatedAt,
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    );
+    const higherIdDocument = await createCompletedDocument(
+      user.id,
+      2,
+      tiedCreatedAt,
+      'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    );
+
+    const firstResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .query({ limit: 1 })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const firstPage = firstResponse.body as ListDocumentsResponseBody;
+
+    expect(firstPage.total).toBe(2);
+    expect(firstPage.data.map((document) => document.id)).toEqual([
+      higherIdDocument.id,
+    ]);
+    expect(firstPage.nextCursor).toEqual(expect.any(String));
+
+    const secondResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .query({ limit: 1, cursor: firstPage.nextCursor })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const secondPage = secondResponse.body as ListDocumentsResponseBody;
+
+    expect(secondPage.total).toBe(2);
+    expect(secondPage.data.map((document) => document.id)).toEqual([
+      lowerIdDocument.id,
+    ]);
+    expect(secondPage.nextCursor).toBeNull();
+  });
+
+  it('applies the default limit of 20 and accepts the maximum limit of 100', async () => {
+    const { user, accessToken } = await registerAndLogin(
+      app,
+      `document-list-limits.${Date.now()}@example.com`,
+    );
+    await Promise.all(
+      Array.from({ length: 21 }, (_, index) =>
+        createCompletedDocument(
+          user.id,
+          index,
+          new Date(Date.UTC(2026, 5, 24, 1, index)),
+        ),
+      ),
+    );
+
+    const defaultResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const defaultPage = defaultResponse.body as ListDocumentsResponseBody;
+    expect(defaultPage.data).toHaveLength(20);
+    expect(defaultPage.nextCursor).toEqual(expect.any(String));
+    expect(defaultPage.total).toBe(21);
+
+    const maximumResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .query({ limit: 100 })
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    const maximumPage = maximumResponse.body as ListDocumentsResponseBody;
+    expect(maximumPage.data).toHaveLength(21);
+    expect(maximumPage.nextCursor).toBeNull();
+  });
+
+  it.each(['0', '101', '1.5', 'not-a-number'])(
+    'rejects invalid list limit %s',
+    async (limit) => {
+      const { accessToken } = await registerAndLogin(
+        app,
+        `document-invalid-limit-${limit}.${Date.now()}@example.com`,
+      );
+
+      await request(app.getHttpServer())
+        .get('/api/v1/documents')
+        .query({ limit })
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(400);
+    },
+  );
+
+  it('returns 400 for malformed, stale, and non-owned cursors', async () => {
+    const owner = await registerAndLogin(
+      app,
+      `document-cursor-owner.${Date.now()}@example.com`,
+    );
+    const otherUser = await registerAndLogin(
+      app,
+      `document-cursor-other.${Date.now()}@example.com`,
+    );
+    const otherDocument = await createCompletedDocument(
+      otherUser.user.id,
+      1,
+      new Date('2026-06-24T11:00:00.000Z'),
+    );
+    const staleCursor = encodeCursorPayload({
+      id: '44444444-4444-4444-8444-444444444444',
+      createdAt: '2026-06-24T11:00:00.000Z',
+    });
+    const nonOwnedCursor = encodeCursorPayload({
+      id: otherDocument.id,
+      createdAt: otherDocument.createdAt.toISOString(),
+    });
+
+    for (const cursor of ['not-base64', staleCursor, nonOwnedCursor]) {
+      await request(app.getHttpServer())
+        .get('/api/v1/documents')
+        .query({ cursor })
+        .set('Authorization', `Bearer ${owner.accessToken}`)
+        .expect(400)
+        .expect((res: HttpResponseBody) => {
+          expect(asErrorMessageBody(res.body).message).toBe(
+            'Invalid document cursor',
+          );
+        });
+    }
+  });
+
+  it('requires authentication to list documents', async () => {
+    await request(app.getHttpServer()).get('/api/v1/documents').expect(401);
   });
 
   it('POST upload flags low-confidence analysis for manual review and exposes it on GET', async () => {

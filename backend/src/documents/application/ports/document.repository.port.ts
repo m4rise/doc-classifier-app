@@ -43,6 +43,34 @@ export interface DocumentDetails {
   errorMessage: string | null;
 }
 
+export interface DocumentListCursor {
+  id: string;
+  createdAt: Date;
+}
+
+export interface DocumentListItem {
+  id: string;
+  status: DocumentStatus;
+  originalName: string;
+  mimeType: string;
+  sizeBytes: number;
+  classification: string | null;
+  confidenceScore: number | null;
+  needsReview: boolean;
+  createdAt: Date;
+}
+
+export interface ListDocumentsRepositoryInput {
+  userId: string;
+  limit: number;
+  cursor?: DocumentListCursor;
+}
+
+export interface ListDocumentsRepositoryResult {
+  documents: DocumentListItem[];
+  total: number;
+}
+
 export abstract class DocumentRepository {
   abstract createPending(
     input: CreatePendingDocumentInput,
@@ -66,4 +94,13 @@ export abstract class DocumentRepository {
     documentId: string,
     userId: string,
   ): Promise<DocumentDetails | null>;
+
+  /**
+   * Returns at most `limit + 1` owner-scoped documents for lookahead.
+   * A null result means that the supplied cursor does not belong to the user
+   * or no longer identifies an existing document.
+   */
+  abstract listForUser(
+    input: ListDocumentsRepositoryInput,
+  ): Promise<ListDocumentsRepositoryResult | null>;
 }
