@@ -1,10 +1,13 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
 import { AuthModule } from '../auth/auth.module';
+import { AppConfiguration } from '../config/app.config';
 import { LlmModule } from '../llm/llm.module';
 import {
   CONFIDENCE_THRESHOLD,
   DOCUMENT_ANALYZER,
+  DOCUMENT_DOWNLOAD_URL_TTL_SECONDS,
   DOCUMENT_REPOSITORY,
   FILE_SIZE_LIMIT_BYTES,
   FILE_STORAGE,
@@ -19,28 +22,48 @@ import { ListDocumentsUseCase } from './application/use-cases/list-documents.use
 import { ProcessDocumentUseCase } from './application/use-cases/process-document.use-case';
 import { UploadDocumentUseCase } from './application/use-cases/upload-document.use-case';
 import { SynchronousDocumentProcessingWorkflow } from './application/workflows/synchronous-document-processing.workflow';
-import { resolveConfidenceThreshold } from './infrastructure/config/confidence-threshold.config';
-import { resolveFileStorageDriver } from './infrastructure/config/file-storage.config';
-import { resolveFileSizeLimitBytes } from './infrastructure/config/file-size-limit';
 import { FileTypePackageDetector } from './infrastructure/file-type/file-type-package-detector';
 import { PrismaDocumentRepository } from './infrastructure/persistence/prisma-document.repository';
 import { GcsFileStorage } from './infrastructure/storage/gcs-file-storage';
 import { LocalFileStorage } from './infrastructure/storage/local-file-storage';
 import { DocumentsController } from './presentation/documents.controller';
 
+const BYTES_PER_MEGABYTE = 1024 * 1024;
+
 @Module({
   imports: [
     AuthModule,
     LlmModule,
-    MulterModule.register({
-      limits: { fileSize: resolveFileSizeLimitBytes() },
+    MulterModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) => {
+        const documents = configService.getOrThrow('documents', {
+          infer: true,
+        });
+
+        return {
+          limits: {
+            fileSize: toBytes(documents.upload.fileSizeLimitMb),
+          },
+        };
+      },
     }),
   ],
   controllers: [DocumentsController],
   providers: [
     PrismaDocumentRepository,
     FileTypePackageDetector,
-    LocalFileStorage,
+    {
+      provide: LocalFileStorage,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) => {
+        const documents = configService.getOrThrow('documents', {
+          infer: true,
+        });
+
+        return new LocalFileStorage(documents.storage.localUploadDir);
+      },
+    },
     {
       provide: DOCUMENT_REPOSITORY,
       useExisting: PrismaDocumentRepository,
@@ -51,19 +74,52 @@ import { DocumentsController } from './presentation/documents.controller';
     },
     {
       provide: FILE_STORAGE,
-      useFactory: (localFileStorage: LocalFileStorage): FileStorage =>
-        resolveFileStorageDriver() === 'gcs'
-          ? new GcsFileStorage()
-          : localFileStorage,
-      inject: [LocalFileStorage],
+      useFactory: (
+        localFileStorage: LocalFileStorage,
+        configService: ConfigService<AppConfiguration, true>,
+      ): FileStorage => {
+        const documents = configService.getOrThrow('documents', {
+          infer: true,
+        });
+
+        if (documents.storage.driver !== 'gcs') {
+          return localFileStorage;
+        }
+
+        const { bucketName, projectId } = documents.storage.gcs;
+
+        if (!bucketName || !projectId) {
+          throw new Error(
+            'GCS_BUCKET_NAME and GCS_PROJECT_ID are required when FILE_STORAGE_DRIVER=gcs',
+          );
+        }
+
+        return new GcsFileStorage({ bucketName, projectId });
+      },
+      inject: [LocalFileStorage, ConfigService],
     },
     {
       provide: FILE_SIZE_LIMIT_BYTES,
-      useValue: resolveFileSizeLimitBytes(),
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) =>
+        toBytes(
+          configService.getOrThrow('documents', { infer: true }).upload
+            .fileSizeLimitMb,
+        ),
     },
     {
       provide: CONFIDENCE_THRESHOLD,
-      useValue: resolveConfidenceThreshold(),
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) =>
+        configService.getOrThrow('documents', { infer: true }).classification
+          .confidenceThreshold,
+    },
+    {
+      provide: DOCUMENT_DOWNLOAD_URL_TTL_SECONDS,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) =>
+        configService.getOrThrow('documents', { infer: true }).download
+          .signedUrlTtlSeconds,
     },
     {
       provide: ProcessDocumentUseCase,
@@ -91,8 +147,18 @@ import { DocumentsController } from './presentation/documents.controller';
       useFactory: (
         documentRepository: DocumentRepository,
         fileStorage: FileStorage,
-      ) => new GetDocumentUseCase(documentRepository, fileStorage),
-      inject: [DOCUMENT_REPOSITORY, FILE_STORAGE],
+        downloadUrlTtlSeconds: number,
+      ) =>
+        new GetDocumentUseCase(
+          documentRepository,
+          fileStorage,
+          downloadUrlTtlSeconds,
+        ),
+      inject: [
+        DOCUMENT_REPOSITORY,
+        FILE_STORAGE,
+        DOCUMENT_DOWNLOAD_URL_TTL_SECONDS,
+      ],
     },
     {
       provide: ListDocumentsUseCase,
@@ -136,3 +202,7 @@ import { DocumentsController } from './presentation/documents.controller';
   ],
 })
 export class DocumentsModule {}
+
+function toBytes(megabytes: number): number {
+  return megabytes * BYTES_PER_MEGABYTE;
+}

@@ -177,9 +177,19 @@ jobs:
           env_vars_update_strategy: overwrite
           env_vars: |
             NODE_ENV=production
+            PRISMA_POOL_MAX=2
+            PRISMA_POOL_CONNECTION_TIMEOUT_MS=10000
+            JWT_ACCESS_TOKEN_TTL_SECONDS=900
+            JWT_REFRESH_TOKEN_TTL_SECONDS=604800
+            ARGON2_TIME_COST=3
+            ARGON2_MEMORY_COST_KIB=19456
+            ARGON2_PARALLELISM=1
             FILE_STORAGE_DRIVER=gcs
             GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}
             GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}
+            DOCUMENT_DOWNLOAD_URL_TTL_SECONDS=900
+            DOCUMENT_LIST_DEFAULT_LIMIT=20
+            DOCUMENT_LIST_MAX_LIMIT=100
             GEMINI_MODEL=gemini-3.5-flash
             GEMINI_TIMEOUT_MS=8000
             OTEL_SERVICE_NAME=doc-classifier-app-backend

@@ -1,3 +1,4 @@
+import { parseEnvironment } from '../../../config/app.config';
 import { GeminiDocumentAnalyzer } from './gemini-document-analyzer';
 
 const shouldRunRealGeminiTest =
@@ -6,7 +7,12 @@ const describeIfGeminiKey = shouldRunRealGeminiTest ? describe : describe.skip;
 
 describeIfGeminiKey('GeminiDocumentAnalyzer integration', () => {
   it('returns a schema-valid result for a valid PDF buffer', async () => {
-    const provider = new GeminiDocumentAnalyzer();
+    const gemini = parseEnvironment(process.env).llm.gemini;
+    const provider = new GeminiDocumentAnalyzer({
+      apiKey: gemini.apiKey,
+      modelName: gemini.model,
+      timeoutMs: gemini.timeoutMs,
+    });
 
     const result = await provider.analyze({
       fileBuffer: createMinimalPdfBuffer(),

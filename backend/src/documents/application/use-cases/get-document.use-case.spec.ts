@@ -69,7 +69,7 @@ describe('GetDocumentUseCase', () => {
     return {
       findByIdForUser,
       getSignedUrl,
-      useCase: new GetDocumentUseCase(repository, fileStorage),
+      useCase: new GetDocumentUseCase(repository, fileStorage, 900),
     };
   }
 

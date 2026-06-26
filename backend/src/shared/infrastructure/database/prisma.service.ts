@@ -1,6 +1,8 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { AppConfiguration } from '../../../config/app.config';
 
 // Prisma 7: PrismaClient is generated at custom output path (no longer in @prisma/client).
 // Path is relative to this file: shared/infrastructure/database/ → ../../.. → src/generated/prisma
@@ -18,8 +20,9 @@ import { PrismaClient } from '../../../generated/prisma';
  *   - Import is from the generated output path, not @prisma/client.
  *
  * Why pg.Pool and not a bare connection string?
- *   pg.Pool lets us set max connections and timeout explicitly in code (RF-02),
- *   making pool configuration visible, typed, and testable.
+ *   pg.Pool lets us set max connections and timeout explicitly through typed
+ *   application config (RF-02), making pool policy visible and testable without
+ *   Prisma-specific URL parameters.
  *
  * Refs:
  *   https://www.prisma.io/docs/guides/upgrade-prisma-orm/v7#driver-adapters
@@ -32,13 +35,14 @@ export class PrismaService
 {
   private readonly pool: Pool;
 
-  constructor() {
+  constructor(configService: ConfigService<AppConfiguration, true>) {
+    const database = configService.getOrThrow('database', { infer: true });
     const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      // RF-02: Neon.tech free tier max 10 connections — cap at 2 per pod replica.
-      max: 2,
-      // RF-02: Fail fast if no connection available within 10 seconds.
-      connectionTimeoutMillis: 10_000,
+      connectionString: database.url,
+      // RF-02: default caps each pod replica at 2 connections on Neon free tier.
+      max: database.pool.max,
+      // RF-02: fail fast if no connection becomes available within the timeout.
+      connectionTimeoutMillis: database.pool.connectionTimeoutMs,
     });
     super({ adapter: new PrismaPg(pool) });
     this.pool = pool;

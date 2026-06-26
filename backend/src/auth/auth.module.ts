@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { randomUUID } from 'crypto';
+import { AppConfiguration } from '../config/app.config';
 import {
   AUTH_TOKEN_ISSUER,
   CURRENT_TOS_VERSION,
@@ -34,15 +36,22 @@ import { PrismaUserRepository } from './infrastructure/persistence/prisma-user.r
 import { Argon2PasswordHasher } from './infrastructure/security/argon2-password-hasher';
 import { Argon2RefreshTokenHasher } from './infrastructure/security/argon2-refresh-token-hasher';
 import { JwtAuthTokenIssuer } from './infrastructure/security/jwt-auth-token-issuer';
-import { resolveJwtAccessSecret } from './infrastructure/security/jwt-access-secret';
+import { getJwtAccessSecret } from './infrastructure/security/jwt-config';
 import { AuthController } from './presentation/auth.controller';
 
 @Module({
   imports: [
     PassportModule,
-    JwtModule.register({
-      secret: resolveJwtAccessSecret(),
-      signOptions: { expiresIn: '15m' },
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) => {
+        const auth = configService.getOrThrow('auth', { infer: true });
+
+        return {
+          secret: getJwtAccessSecret(configService),
+          signOptions: { expiresIn: auth.jwtAccessTokenTtlSeconds },
+        };
+      },
     }),
   ],
   controllers: [AuthController],
@@ -69,15 +78,23 @@ import { AuthController } from './presentation/auth.controller';
     { provide: AUTH_TOKEN_ISSUER, useExisting: JwtAuthTokenIssuer },
     {
       provide: CURRENT_TOS_VERSION,
-      useValue: process.env.TOS_VERSION ?? '1.0',
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) =>
+        configService.getOrThrow('auth', { infer: true }).tosVersion,
     },
     {
       provide: JWT_ACCESS_EXPIRES_IN_SECONDS,
-      useValue: 900,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) =>
+        configService.getOrThrow('auth', { infer: true })
+          .jwtAccessTokenTtlSeconds,
     },
     {
       provide: JWT_REFRESH_EXPIRES_IN_SECONDS,
-      useValue: 7 * 24 * 60 * 60,
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) =>
+        configService.getOrThrow('auth', { infer: true })
+          .jwtRefreshTokenTtlSeconds,
     },
     {
       provide: RegisterUseCase,

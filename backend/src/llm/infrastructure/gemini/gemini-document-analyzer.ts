@@ -15,11 +15,6 @@ import {
   DocumentAnalysisTimeoutError,
   InvalidDocumentAnalysisError,
 } from '../../../documents/application/errors/document-analysis.errors';
-import {
-  resolveGeminiApiKey,
-  resolveGeminiModel,
-  resolveGeminiTimeoutMs,
-} from './config/gemini.config';
 import { DOCUMENT_ANALYSIS_PROMPT } from './prompts/document-analysis.prompt';
 import { GeminiAnalysisSchema } from './schemas/gemini-analysis.schema';
 
@@ -33,8 +28,8 @@ export interface GeminiContentGenerator {
 interface GeminiDocumentAnalyzerOptions {
   apiKey?: string;
   model?: GeminiContentGenerator;
-  modelName?: string;
-  timeoutMs?: number;
+  modelName: string;
+  timeoutMs: number;
 }
 
 export class GeminiDocumentAnalyzer implements DocumentAnalyzer {
@@ -44,10 +39,10 @@ export class GeminiDocumentAnalyzer implements DocumentAnalyzer {
   private readonly injectedModel?: GeminiContentGenerator;
   private cachedModel?: GeminiContentGenerator;
 
-  constructor(options: GeminiDocumentAnalyzerOptions = {}) {
-    this.apiKey = options.apiKey ?? resolveGeminiApiKey();
-    this.modelName = options.modelName ?? resolveGeminiModel();
-    this.timeoutMs = options.timeoutMs ?? resolveGeminiTimeoutMs();
+  constructor(options: GeminiDocumentAnalyzerOptions) {
+    this.apiKey = options.apiKey;
+    this.modelName = options.modelName;
+    this.timeoutMs = options.timeoutMs;
     this.injectedModel = options.model;
   }
 

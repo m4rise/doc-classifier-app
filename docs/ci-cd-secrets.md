@@ -37,51 +37,62 @@ the same service account also needs `iam.serviceAccounts.signBlob` via
 > - repo-level variables live in Settings -> Secrets and variables -> Actions
 >   -> Variables
 
-| Key                           | Local `.env` | GCP Secret Manager | Cloud Run env            | GH Secret | GH Variable | Description                                                                               |
-| ----------------------------- | :----------: | :----------------: | ------------------------ | :-------: | :---------: | ----------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                |      ✅      |         ✅         | via `--set-secrets`      |           |             | Production database connection string used by the backend at runtime.                     |
-| `DATABASE_URL_PROD`           |              |                    |                          |    ✅     |             | Production database connection string used only by `prisma migrate deploy` in deploy job. |
-| `NODE_ENV`                    |      ✅      |                    | ✅ `=production`         |           |             | Node.js environment.                                                                      |
-| `PORT`                        |      ✅      |                    | ✅ `=3000`               |           |             | Backend listen port.                                                                      |
-| `JWT_ACCESS_SECRET`           |      ✅      |         ✅         | via `--set-secrets`      |           |             | Secret for signing JWT access tokens.                                                     |
-| `JWT_REFRESH_SECRET`          |      ✅      |         ✅         | via `--set-secrets`      |           |             | Secret for signing JWT refresh tokens.                                                    |
-| `AES_ENCRYPTION_KEY`          |      ✅      |         ✅         | via `--set-secrets`      |           |             | AES-256 key for encryption at rest.                                                       |
-| `GCS_BUCKET_NAME`             |      ✅      |                    | ✅                       |           |     ✅      | Google Cloud Storage bucket for document uploads.                                         |
-| `GCS_PROJECT_ID`              |      ✅      |                    | ✅ from `GCP_PROJECT_ID` |           |             | GCP project ID injected into the app under the name `GCS_PROJECT_ID`.                     |
-| `FILE_STORAGE_DRIVER`         |      ✅      |                    | ✅ `=gcs`                |           |             | Storage backend selector. Use `local` for dev/test and `gcs` for Cloud Run.               |
-| `LOCAL_UPLOAD_DIR`            |      ✅      |                    |                          |           |             | Local-only upload directory used only when `FILE_STORAGE_DRIVER=local`.                   |
-| `GEMINI_API_KEY`              |      ✅      |         ✅         | via `--set-secrets`      |           |             | API key for Google Gemini features.                                                       |
-| `GEMINI_MODEL`                |      ✅      |                    | ✅ `=gemini-3.5-flash`   |           |             | Gemini model used by the LLM provider.                                                    |
-| `GEMINI_TIMEOUT_MS`           |      ✅      |                    | ✅ `=8000`               |           |             | Gemini analysis timeout in milliseconds.                                                  |
-| `MCP_API_KEY`                 |      ✅      |         ✅         | via `--set-secrets`      |           |             | Static API key for MCP authentication.                                                    |
-| `SENTRY_DSN`                  |      ✅      |         ✅         | via `--set-secrets`      |           |             | Sentry DSN for backend error reporting.                                                   |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` |      ✅      |         ✅         | via `--set-secrets`      |           |             | OTLP endpoint for OpenTelemetry export.                                                   |
-| `GRAFANA_INSTANCE_ID`         |      ✅      |         ✅         | via `--set-secrets`      |           |             | Grafana Cloud instance ID.                                                                |
-| `GRAFANA_API_KEY`             |      ✅      |         ✅         | via `--set-secrets`      |           |             | Grafana Cloud API key.                                                                    |
-| `OTEL_SERVICE_NAME`           |      ✅      |                    | ✅                       |           |             | OpenTelemetry service name.                                                               |
-| `OTEL_RESOURCE_ATTRIBUTES`    |      ✅      |                    | ✅                       |           |             | OpenTelemetry resource attributes.                                                        |
-| `OTEL_TRACES_EXPORTER`        |      ✅      |                    | ✅                       |           |             | OTEL traces exporter.                                                                     |
-| `OTEL_METRICS_EXPORTER`       |      ✅      |                    | ✅                       |           |             | OTEL metrics exporter.                                                                    |
-| `OTEL_LOGS_EXPORTER`          |      ✅      |                    | ✅                       |           |             | OTEL logs exporter.                                                                       |
-| `THROTTLE_TTL`                |      ✅      |                    | ✅ `=60`                 |           |             | Rate-limit window in seconds.                                                             |
-| `THROTTLE_LIMIT`              |      ✅      |                    | ✅ `=100`                |           |             | Maximum requests per IP per window.                                                       |
-| `THROTTLE_AUTH_TTL`           |      ✅      |                    | ✅ `=60`                 |           |             | Login rate-limit window in seconds.                                                       |
-| `THROTTLE_AUTH_LIMIT`         |      ✅      |                    | ✅ `=10`                 |           |             | Maximum login attempts per IP per auth window.                                            |
-| `THROTTLE_AUTH_SESSION_TTL`   |      ✅      |                    | ✅ `=60`                 |           |             | Authenticated session rate-limit window in seconds.                                       |
-| `THROTTLE_AUTH_SESSION_LIMIT` |      ✅      |                    | ✅ `=60`                 |           |             | Maximum auth session requests per user/IP per window.                                     |
-| `THROTTLE_REGISTER_TTL`       |      ✅      |                    | ✅ `=60`                 |           |             | Register rate-limit window in seconds.                                                    |
-| `THROTTLE_REGISTER_LIMIT`     |      ✅      |                    | ✅ `=5`                  |           |             | Maximum register attempts per IP per register window.                                     |
-| `THROTTLE_UPLOAD_TTL`         |      ✅      |                    | ✅ `=60`                 |           |             | Upload rate-limit window in seconds.                                                      |
-| `THROTTLE_UPLOAD_LIMIT`       |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload attempts per user/IP per upload window.                                    |
-| `CONFIDENCE_THRESHOLD`        |      ✅      |                    | ✅ `=0.7`                |           |             | Minimum AI confidence score for auto-validation.                                          |
-| `FILE_SIZE_LIMIT_MB`          |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload file size in MB.                                                           |
-| `TOS_VERSION`                 |      ✅      |                    | ✅ `=1.0`                |           |             | Current Terms of Service version required at registration.                                |
-| `WIF_PROVIDER`                |              |                    |                          |    ✅     |             | GCP OIDC provider resource name for Workload Identity Federation.                         |
-| `WIF_SERVICE_ACCOUNT`         |              |                    |                          |    ✅     |             | GCP service account email used by GitHub Actions via OIDC.                                |
-| `GCP_PROJECT_ID`              |              |                    |                          |           |     ✅      | GCP project ID used for image tags, registry path, and Cloud Run config.                  |
-| `GCP_REGION`                  |              |                    |                          |           |     ✅      | GCP region for Cloud Run and Artifact Registry.                                           |
-| `CLOUD_RUN_SERVICE`           |              |                    |                          |           |     ✅      | Cloud Run backend service name.                                                           |
-| `FIREBASE_PROJECT_ID`         |              |                    |                          |           |     ✅      | Firebase project ID used by the frontend deploy job.                                      |
+| Key                                 | Local `.env` | GCP Secret Manager | Cloud Run env            | GH Secret | GH Variable | Description                                                                               |
+| ----------------------------------- | :----------: | :----------------: | ------------------------ | :-------: | :---------: | ----------------------------------------------------------------------------------------- |
+| `PRISMA_POOL_MAX`                   |      ✅      |                    | ✅ `=2`                  |           |             | Maximum PostgreSQL pool connections per backend instance.                                 |
+| `PRISMA_POOL_CONNECTION_TIMEOUT_MS` |      ✅      |                    | ✅ `=10000`              |           |             | PostgreSQL pool connection acquisition timeout in milliseconds.                           |
+| `JWT_ACCESS_TOKEN_TTL_SECONDS`      |      ✅      |                    | ✅ `=900`                |           |             | Access token lifetime in seconds.                                                         |
+| `JWT_REFRESH_TOKEN_TTL_SECONDS`     |      ✅      |                    | ✅ `=604800`             |           |             | Refresh token lifetime in seconds.                                                        |
+| `ARGON2_TIME_COST`                  |      ✅      |                    | ✅ `=3`                  |           |             | Argon2id time cost for password and refresh token hashing.                                |
+| `ARGON2_MEMORY_COST_KIB`            |      ✅      |                    | ✅ `=19456`              |           |             | Argon2id memory cost in KiB.                                                              |
+| `ARGON2_PARALLELISM`                |      ✅      |                    | ✅ `=1`                  |           |             | Argon2id parallelism.                                                                     |
+| `DOCUMENT_DOWNLOAD_URL_TTL_SECONDS` |      ✅      |                    | ✅ `=900`                |           |             | Signed document download URL lifetime in seconds.                                         |
+| `DOCUMENT_LIST_DEFAULT_LIMIT`       |      ✅      |                    | ✅ `=20`                 |           |             | Default document list page size.                                                          |
+| `DOCUMENT_LIST_MAX_LIMIT`           |      ✅      |                    | ✅ `=100`                |           |             | Maximum accepted document list page size.                                                 |
+| `RUN_GEMINI_INTEGRATION`            |      ✅      |                    |                          |           |             | Local/manual test flag for the real Gemini integration spec.                              |
+| `DATABASE_URL`                      |      ✅      |         ✅         | via `--set-secrets`      |           |             | Production database connection string used by the backend at runtime.                     |
+| `DATABASE_URL_PROD`                 |              |                    |                          |    ✅     |             | Production database connection string used only by `prisma migrate deploy` in deploy job. |
+| `NODE_ENV`                          |      ✅      |                    | ✅ `=production`         |           |             | Node.js environment.                                                                      |
+| `PORT`                              |      ✅      |                    | ✅ `=3000`               |           |             | Backend listen port.                                                                      |
+| `JWT_ACCESS_SECRET`                 |      ✅      |         ✅         | via `--set-secrets`      |           |             | Secret for signing JWT access tokens.                                                     |
+| `JWT_REFRESH_SECRET`                |      ✅      |         ✅         | via `--set-secrets`      |           |             | Secret for signing JWT refresh tokens.                                                    |
+| `AES_ENCRYPTION_KEY`                |      ✅      |         ✅         | via `--set-secrets`      |           |             | AES-256 key for encryption at rest.                                                       |
+| `GCS_BUCKET_NAME`                   |      ✅      |                    | ✅                       |           |     ✅      | Google Cloud Storage bucket for document uploads.                                         |
+| `GCS_PROJECT_ID`                    |      ✅      |                    | ✅ from `GCP_PROJECT_ID` |           |             | GCP project ID injected into the app under the name `GCS_PROJECT_ID`.                     |
+| `FILE_STORAGE_DRIVER`               |      ✅      |                    | ✅ `=gcs`                |           |             | Storage backend selector. Use `local` for dev/test and `gcs` for Cloud Run.               |
+| `LOCAL_UPLOAD_DIR`                  |      ✅      |                    |                          |           |             | Local-only upload directory used only when `FILE_STORAGE_DRIVER=local`.                   |
+| `GEMINI_API_KEY`                    |      ✅      |         ✅         | via `--set-secrets`      |           |             | API key for Google Gemini features.                                                       |
+| `GEMINI_MODEL`                      |      ✅      |                    | ✅ `=gemini-3.5-flash`   |           |             | Gemini model used by the LLM provider.                                                    |
+| `GEMINI_TIMEOUT_MS`                 |      ✅      |                    | ✅ `=8000`               |           |             | Gemini analysis timeout in milliseconds.                                                  |
+| `MCP_API_KEY`                       |      ✅      |         ✅         | via `--set-secrets`      |           |             | Static API key for MCP authentication.                                                    |
+| `SENTRY_DSN`                        |      ✅      |         ✅         | via `--set-secrets`      |           |             | Sentry DSN for backend error reporting.                                                   |
+| `OTEL_EXPORTER_OTLP_ENDPOINT`       |      ✅      |         ✅         | via `--set-secrets`      |           |             | OTLP endpoint for OpenTelemetry export.                                                   |
+| `GRAFANA_INSTANCE_ID`               |      ✅      |         ✅         | via `--set-secrets`      |           |             | Grafana Cloud instance ID.                                                                |
+| `GRAFANA_API_KEY`                   |      ✅      |         ✅         | via `--set-secrets`      |           |             | Grafana Cloud API key.                                                                    |
+| `OTEL_SERVICE_NAME`                 |      ✅      |                    | ✅                       |           |             | OpenTelemetry service name.                                                               |
+| `OTEL_RESOURCE_ATTRIBUTES`          |      ✅      |                    | ✅                       |           |             | OpenTelemetry resource attributes.                                                        |
+| `OTEL_TRACES_EXPORTER`              |      ✅      |                    | ✅                       |           |             | OTEL traces exporter.                                                                     |
+| `OTEL_METRICS_EXPORTER`             |      ✅      |                    | ✅                       |           |             | OTEL metrics exporter.                                                                    |
+| `OTEL_LOGS_EXPORTER`                |      ✅      |                    | ✅                       |           |             | OTEL logs exporter.                                                                       |
+| `THROTTLE_TTL`                      |      ✅      |                    | ✅ `=60`                 |           |             | Rate-limit window in seconds.                                                             |
+| `THROTTLE_LIMIT`                    |      ✅      |                    | ✅ `=100`                |           |             | Maximum requests per IP per window.                                                       |
+| `THROTTLE_AUTH_TTL`                 |      ✅      |                    | ✅ `=60`                 |           |             | Login rate-limit window in seconds.                                                       |
+| `THROTTLE_AUTH_LIMIT`               |      ✅      |                    | ✅ `=10`                 |           |             | Maximum login attempts per IP per auth window.                                            |
+| `THROTTLE_AUTH_SESSION_TTL`         |      ✅      |                    | ✅ `=60`                 |           |             | Authenticated session rate-limit window in seconds.                                       |
+| `THROTTLE_AUTH_SESSION_LIMIT`       |      ✅      |                    | ✅ `=60`                 |           |             | Maximum auth session requests per user/IP per window.                                     |
+| `THROTTLE_REGISTER_TTL`             |      ✅      |                    | ✅ `=60`                 |           |             | Register rate-limit window in seconds.                                                    |
+| `THROTTLE_REGISTER_LIMIT`           |      ✅      |                    | ✅ `=5`                  |           |             | Maximum register attempts per IP per register window.                                     |
+| `THROTTLE_UPLOAD_TTL`               |      ✅      |                    | ✅ `=60`                 |           |             | Upload rate-limit window in seconds.                                                      |
+| `THROTTLE_UPLOAD_LIMIT`             |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload attempts per user/IP per upload window.                                    |
+| `CONFIDENCE_THRESHOLD`              |      ✅      |                    | ✅ `=0.7`                |           |             | Minimum AI confidence score for auto-validation.                                          |
+| `FILE_SIZE_LIMIT_MB`                |      ✅      |                    | ✅ `=10`                 |           |             | Maximum upload file size in MB.                                                           |
+| `TOS_VERSION`                       |      ✅      |                    | ✅ `=1.0`                |           |             | Current Terms of Service version required at registration.                                |
+| `WIF_PROVIDER`                      |              |                    |                          |    ✅     |             | GCP OIDC provider resource name for Workload Identity Federation.                         |
+| `WIF_SERVICE_ACCOUNT`               |              |                    |                          |    ✅     |             | GCP service account email used by GitHub Actions via OIDC.                                |
+| `GCP_PROJECT_ID`                    |              |                    |                          |           |     ✅      | GCP project ID used for image tags, registry path, and Cloud Run config.                  |
+| `GCP_REGION`                        |              |                    |                          |           |     ✅      | GCP region for Cloud Run and Artifact Registry.                                           |
+| `CLOUD_RUN_SERVICE`                 |              |                    |                          |           |     ✅      | Cloud Run backend service name.                                                           |
+| `FIREBASE_PROJECT_ID`               |              |                    |                          |           |     ✅      | Firebase project ID used by the frontend deploy job.                                      |
 
 Staging-specific additions used by `.github/workflows/staging-deploy.yml`:
 
@@ -213,9 +224,19 @@ gh variable set GCP_STAGING_REGION --body "europe-west1" --repo "$REPO"
 The backend deploy injects these as `env_vars` with `env_vars_update_strategy: overwrite`:
 
 - `NODE_ENV=production`
+- `PRISMA_POOL_MAX=2`
+- `PRISMA_POOL_CONNECTION_TIMEOUT_MS=10000`
+- `JWT_ACCESS_TOKEN_TTL_SECONDS=900`
+- `JWT_REFRESH_TOKEN_TTL_SECONDS=604800`
+- `ARGON2_TIME_COST=3`
+- `ARGON2_MEMORY_COST_KIB=19456`
+- `ARGON2_PARALLELISM=1`
 - `FILE_STORAGE_DRIVER=gcs`
 - `GCS_PROJECT_ID=${{ vars.GCP_PROJECT_ID }}`
 - `GCS_BUCKET_NAME=${{ vars.GCS_BUCKET_NAME }}`
+- `DOCUMENT_DOWNLOAD_URL_TTL_SECONDS=900`
+- `DOCUMENT_LIST_DEFAULT_LIMIT=20`
+- `DOCUMENT_LIST_MAX_LIMIT=100`
 - `GEMINI_MODEL=gemini-3.5-flash`
 - `GEMINI_TIMEOUT_MS=8000`
 - `OTEL_SERVICE_NAME=doc-classifier-app-backend`

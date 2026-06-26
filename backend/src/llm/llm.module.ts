@@ -1,4 +1,6 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { AppConfiguration } from '../config/app.config';
 import { DOCUMENT_ANALYZER } from '../documents/application/documents.tokens';
 import { GeminiDocumentAnalyzer } from './infrastructure/gemini/gemini-document-analyzer';
 
@@ -6,7 +8,18 @@ import { GeminiDocumentAnalyzer } from './infrastructure/gemini/gemini-document-
   providers: [
     {
       provide: GeminiDocumentAnalyzer,
-      useFactory: () => new GeminiDocumentAnalyzer(),
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService<AppConfiguration, true>) => {
+        const gemini = configService.getOrThrow('llm', {
+          infer: true,
+        }).gemini;
+
+        return new GeminiDocumentAnalyzer({
+          apiKey: gemini.apiKey,
+          modelName: gemini.model,
+          timeoutMs: gemini.timeoutMs,
+        });
+      },
     },
     {
       provide: DOCUMENT_ANALYZER,
