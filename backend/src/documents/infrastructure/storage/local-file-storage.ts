@@ -9,8 +9,7 @@ import { assertValidDocumentStorageKey } from './document-storage-key';
 export class LocalFileStorage implements FileStorage {
   private readonly uploadDirectory: string;
 
-  constructor() {
-    const configuredUploadDirectory = process.env.LOCAL_UPLOAD_DIR?.trim();
+  constructor(configuredUploadDirectory?: string) {
     this.uploadDirectory = resolve(
       configuredUploadDirectory && configuredUploadDirectory.length > 0
         ? configuredUploadDirectory

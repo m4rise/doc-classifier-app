@@ -17,8 +17,10 @@ import {
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Throttle } from '@nestjs/throttler';
+import { AppConfiguration } from '../../config/app.config';
 import type { AuthenticatedRequest } from '../../auth/presentation/authenticated-request';
 import { JwtAuthGuard } from '../../auth/infrastructure/passport/jwt-auth.guard';
 import { createUploadThrottleOptions } from '../../shared/infrastructure/rate-limiting/throttle.config';
@@ -45,11 +47,18 @@ interface UploadedMultipartFile {
 @Controller('api/v1/documents')
 @UseGuards(JwtAuthGuard)
 export class DocumentsController {
+  private readonly documentListConfig: AppConfiguration['documents']['list'];
+
   constructor(
     private readonly synchronousDocumentProcessing: SynchronousDocumentProcessingWorkflow,
     private readonly getDocumentUseCase: GetDocumentUseCase,
     private readonly listDocumentsUseCase: ListDocumentsUseCase,
-  ) {}
+    configService: ConfigService<AppConfiguration, true>,
+  ) {
+    this.documentListConfig = configService.getOrThrow('documents', {
+      infer: true,
+    }).list;
+  }
 
   @Post('upload')
   @Throttle(createUploadThrottleOptions())
@@ -98,7 +107,7 @@ export class DocumentsController {
     try {
       return await this.listDocumentsUseCase.execute({
         userId: req.user.userId,
-        limit: query.limit,
+        limit: this.resolveListLimit(query.limit),
         cursor: query.cursor,
       });
     } catch (error) {
@@ -124,5 +133,17 @@ export class DocumentsController {
 
       throw error;
     }
+  }
+
+  private resolveListLimit(limit: number | undefined): number {
+    const effectiveLimit = limit ?? this.documentListConfig.defaultLimit;
+
+    if (effectiveLimit > this.documentListConfig.maxLimit) {
+      throw new BadRequestException(
+        `limit must be less than or equal to ${this.documentListConfig.maxLimit}`,
+      );
+    }
+
+    return effectiveLimit;
   }
 }

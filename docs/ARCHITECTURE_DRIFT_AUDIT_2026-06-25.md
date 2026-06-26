@@ -303,6 +303,7 @@ Suggested first issue:
 Clarify Codecov policy and wire patch coverage expectations into PR review.
 
 ### DRIFT-008 - ADRs Are Sometimes Used To Justify Temporary Choices Without A
+
 Follow-Up Trigger
 
 Severity: Medium
@@ -355,7 +356,7 @@ technical debt issues.
 
 - `chore(config): adopt NestJS ConfigModule and validated app config`
 - `refactor(config): migrate auth, documents, LLM, database, and rate-limit
-  policy values to typed config`
+policy values to typed config`
 - `refactor(documents): extract document cursor codec before search/filter/sort`
 - `refactor(shared): centralize UUID, email, Prisma, and JWT error helpers`
 - `docs(architecture): add type-placement and validation guidelines`
@@ -370,14 +371,20 @@ audit. Keep the first config PR scoped to the foundation; do not fold the
 runtime policy migration into it unless the GitHub issue explicitly expands the
 contract.
 
-| Group | Scope | Drift Coverage |
-| --- | --- | --- |
-| A | Config foundation: add `@nestjs/config`, Zod validation, typed config namespaces, and bootstrap consumption for app-level config. | DRIFT-001 plus the foundation portion of DRIFT-002 and DRIFT-003 |
-| B | Runtime policy migration: move TTLs, thresholds, limits, Prisma pool, throttling, Gemini, and observability values behind typed config. | DRIFT-002 plus remaining env parsing from DRIFT-003 |
-| C | Document cursor codec extraction before Story 4.6 search/filter/sort work. | DRIFT-004 |
-| D | Shared UUID, email, Prisma unique-constraint, and Passport JWT error helpers. | DRIFT-003 |
-| E | ADR amendments for signed URL TTL policy, async-processing revisit triggers, and linked follow-up issues. | DRIFT-008 |
-| F | Codecov policy clarification: decide advisory vs gating behavior and PR expectations. | DRIFT-007 |
+| Group | Scope                                                                                                                                   | Drift Coverage                                                   |
+| ----- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| A     | Config foundation: add `@nestjs/config`, Zod validation, typed config namespaces, and bootstrap consumption for app-level config.       | DRIFT-001 plus the foundation portion of DRIFT-002 and DRIFT-003 |
+| B     | Runtime policy migration: move TTLs, thresholds, limits, Prisma pool, throttling, Gemini, and observability values behind typed config. | DRIFT-002 plus remaining env parsing from DRIFT-003              |
+| C     | Document cursor codec extraction before Story 4.6 search/filter/sort work.                                                              | DRIFT-004                                                        |
+| D     | Shared UUID, email, Prisma unique-constraint, and Passport JWT error helpers.                                                           | DRIFT-003                                                        |
+| E     | ADR amendments for signed URL TTL policy, async-processing revisit triggers, and linked follow-up issues.                               | DRIFT-008                                                        |
+| F     | Codecov policy clarification: decide advisory vs gating behavior and PR expectations.                                                   | DRIFT-007                                                        |
+
+PR #117 started as Group A and was explicitly expanded during review to cover a
+targeted Group B subset: auth TTL/hash policy, document download/list/upload
+policy, Gemini provider options, and Prisma pool settings. Remaining Group B
+items after that PR are static throttle decorator policy and pre-Nest
+observability bootstrap reads.
 
 `DRIFT-005` and `DRIFT-006` remain valid follow-up tracks, but they should not
 be bundled into the config foundation PR unless a new issue explicitly asks for

@@ -20,10 +20,10 @@ import { z } from 'zod';
 /**
  * Runtime defaults used when an env key is absent or blank.
  *
- * These defaults mirror the existing `.env.example`, deployment workflow, and
- * resolver behavior. They are not a license to add new policy constants here:
- * Group B of the drift remediation should move feature runtime policies behind
- * this config contract deliberately.
+ * These defaults mirror `.env.example`, deployment workflows, and the previous
+ * resolver behavior. Runtime policy values live here once migrated; safety caps
+ * remain explicit code constraints so an env override cannot silently weaken
+ * production guarantees.
  */
 const DEFAULT_PORT = 3000;
 const DEFAULT_GEMINI_MODEL = 'gemini-3.5-flash';
@@ -32,6 +32,22 @@ const MAX_GEMINI_TIMEOUT_MS = 120_000;
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.7;
 const DEFAULT_FILE_SIZE_LIMIT_MB = 10;
 const DEFAULT_TOS_VERSION = '1.0';
+const DEFAULT_JWT_ACCESS_TOKEN_TTL_SECONDS = 900;
+const DEFAULT_JWT_REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+const DEFAULT_DOCUMENT_DOWNLOAD_URL_TTL_SECONDS = 900;
+const MAX_DOCUMENT_DOWNLOAD_URL_TTL_SECONDS = 900;
+const DEFAULT_DOCUMENT_LIST_LIMIT = 20;
+const DEFAULT_DOCUMENT_LIST_MAX_LIMIT = 100;
+const DEFAULT_PRISMA_POOL_MAX = 2;
+const MAX_PRISMA_POOL_MAX = 10;
+const DEFAULT_PRISMA_POOL_CONNECTION_TIMEOUT_MS = 10_000;
+const MAX_PRISMA_POOL_CONNECTION_TIMEOUT_MS = 120_000;
+const DEFAULT_ARGON2_TIME_COST = 3;
+const MAX_ARGON2_TIME_COST = 10;
+const DEFAULT_ARGON2_MEMORY_COST_KIB = 19_456;
+const MAX_ARGON2_MEMORY_COST_KIB = 1_048_576;
+const DEFAULT_ARGON2_PARALLELISM = 1;
+const MAX_ARGON2_PARALLELISM = 8;
 const DEFAULT_GLOBAL_THROTTLE_TTL_SECONDS = 60;
 const DEFAULT_GLOBAL_THROTTLE_LIMIT = 100;
 const DEFAULT_AUTH_THROTTLE_TTL_SECONDS = 60;
@@ -64,10 +80,21 @@ export interface AppConfiguration {
   auth: {
     jwtAccessSecret?: string;
     jwtRefreshSecret?: string;
+    jwtAccessTokenTtlSeconds: number;
+    jwtRefreshTokenTtlSeconds: number;
     tosVersion: string;
+    argon2: {
+      timeCost: number;
+      memoryCostKiB: number;
+      parallelism: number;
+    };
   };
   database: {
     url?: string;
+    pool: {
+      max: number;
+      connectionTimeoutMs: number;
+    };
   };
   documents: {
     storage: {
@@ -80,6 +107,13 @@ export interface AppConfiguration {
     };
     upload: {
       fileSizeLimitMb: number;
+    };
+    download: {
+      signedUrlTtlSeconds: number;
+    };
+    list: {
+      defaultLimit: number;
+      maxLimit: number;
     };
     classification: {
       confidenceThreshold: number;
@@ -169,6 +203,37 @@ const environmentSchema = z
     DATABASE_URL: optionalTrimmedString(),
     JWT_ACCESS_SECRET: optionalTrimmedString(),
     JWT_REFRESH_SECRET: optionalTrimmedString(),
+    JWT_ACCESS_TOKEN_TTL_SECONDS: integerEnv(
+      DEFAULT_JWT_ACCESS_TOKEN_TTL_SECONDS,
+    ),
+    JWT_REFRESH_TOKEN_TTL_SECONDS: integerEnv(
+      DEFAULT_JWT_REFRESH_TOKEN_TTL_SECONDS,
+    ),
+    ARGON2_TIME_COST: integerEnv(
+      DEFAULT_ARGON2_TIME_COST,
+      DEFAULT_ARGON2_TIME_COST,
+      MAX_ARGON2_TIME_COST,
+    ),
+    ARGON2_MEMORY_COST_KIB: integerEnv(
+      DEFAULT_ARGON2_MEMORY_COST_KIB,
+      DEFAULT_ARGON2_MEMORY_COST_KIB,
+      MAX_ARGON2_MEMORY_COST_KIB,
+    ),
+    ARGON2_PARALLELISM: integerEnv(
+      DEFAULT_ARGON2_PARALLELISM,
+      1,
+      MAX_ARGON2_PARALLELISM,
+    ),
+    PRISMA_POOL_MAX: integerEnv(
+      DEFAULT_PRISMA_POOL_MAX,
+      1,
+      MAX_PRISMA_POOL_MAX,
+    ),
+    PRISMA_POOL_CONNECTION_TIMEOUT_MS: integerEnv(
+      DEFAULT_PRISMA_POOL_CONNECTION_TIMEOUT_MS,
+      1,
+      MAX_PRISMA_POOL_CONNECTION_TIMEOUT_MS,
+    ),
     AES_ENCRYPTION_KEY: optionalTrimmedString(),
     GCS_BUCKET_NAME: optionalTrimmedString(),
     GCS_PROJECT_ID: optionalTrimmedString(),
@@ -229,6 +294,13 @@ const environmentSchema = z
     THROTTLE_UPLOAD_LIMIT: integerEnv(DEFAULT_UPLOAD_THROTTLE_LIMIT),
     CONFIDENCE_THRESHOLD: numericEnv(DEFAULT_CONFIDENCE_THRESHOLD, 0, 1),
     FILE_SIZE_LIMIT_MB: integerEnv(DEFAULT_FILE_SIZE_LIMIT_MB),
+    DOCUMENT_DOWNLOAD_URL_TTL_SECONDS: integerEnv(
+      DEFAULT_DOCUMENT_DOWNLOAD_URL_TTL_SECONDS,
+      1,
+      MAX_DOCUMENT_DOWNLOAD_URL_TTL_SECONDS,
+    ),
+    DOCUMENT_LIST_DEFAULT_LIMIT: integerEnv(DEFAULT_DOCUMENT_LIST_LIMIT),
+    DOCUMENT_LIST_MAX_LIMIT: integerEnv(DEFAULT_DOCUMENT_LIST_MAX_LIMIT),
     TOS_VERSION: trimmedStringWithDefault(DEFAULT_TOS_VERSION),
   })
   .superRefine((env, ctx) => {
@@ -267,6 +339,15 @@ const environmentSchema = z
         code: 'custom',
         path: ['AES_ENCRYPTION_KEY'],
         message: 'AES_ENCRYPTION_KEY must be exactly 64 hex characters',
+      });
+    }
+
+    if (env.DOCUMENT_LIST_DEFAULT_LIMIT > env.DOCUMENT_LIST_MAX_LIMIT) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['DOCUMENT_LIST_DEFAULT_LIMIT'],
+        message:
+          'DOCUMENT_LIST_DEFAULT_LIMIT must be less than or equal to DOCUMENT_LIST_MAX_LIMIT',
       });
     }
   });
@@ -335,10 +416,21 @@ function toAppConfiguration(env: EnvironmentVariables): AppConfiguration {
     auth: {
       jwtAccessSecret: env.JWT_ACCESS_SECRET,
       jwtRefreshSecret: env.JWT_REFRESH_SECRET,
+      jwtAccessTokenTtlSeconds: env.JWT_ACCESS_TOKEN_TTL_SECONDS,
+      jwtRefreshTokenTtlSeconds: env.JWT_REFRESH_TOKEN_TTL_SECONDS,
       tosVersion: env.TOS_VERSION,
+      argon2: {
+        timeCost: env.ARGON2_TIME_COST,
+        memoryCostKiB: env.ARGON2_MEMORY_COST_KIB,
+        parallelism: env.ARGON2_PARALLELISM,
+      },
     },
     database: {
       url: env.DATABASE_URL,
+      pool: {
+        max: env.PRISMA_POOL_MAX,
+        connectionTimeoutMs: env.PRISMA_POOL_CONNECTION_TIMEOUT_MS,
+      },
     },
     documents: {
       storage: {
@@ -351,6 +443,13 @@ function toAppConfiguration(env: EnvironmentVariables): AppConfiguration {
       },
       upload: {
         fileSizeLimitMb: env.FILE_SIZE_LIMIT_MB,
+      },
+      download: {
+        signedUrlTtlSeconds: env.DOCUMENT_DOWNLOAD_URL_TTL_SECONDS,
+      },
+      list: {
+        defaultLimit: env.DOCUMENT_LIST_DEFAULT_LIMIT,
+        maxLimit: env.DOCUMENT_LIST_MAX_LIMIT,
       },
       classification: {
         confidenceThreshold: env.CONFIDENCE_THRESHOLD,

@@ -1,9 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { Storage } from '@google-cloud/storage';
 import { FileStorage } from '../../application/ports/file-storage.port';
-import type { GcsFileStorageConfig } from '../config/file-storage.config';
-import { resolveGcsFileStorageConfig } from '../config/file-storage.config';
 import { assertValidDocumentStorageKey } from './document-storage-key';
+
+export interface GcsFileStorageConfig {
+  bucketName: string;
+  projectId: string;
+}
 
 interface GcsStorageClient {
   bucket(name: string): GcsBucket;
@@ -45,7 +48,7 @@ export class GcsFileStorage implements FileStorage {
   private readonly storage: GcsStorageClient;
 
   constructor(
-    config: GcsFileStorageConfig = resolveGcsFileStorageConfig(),
+    config: GcsFileStorageConfig,
     storage: GcsStorageClient = new Storage({ projectId: config.projectId }),
   ) {
     this.bucketName = config.bucketName;

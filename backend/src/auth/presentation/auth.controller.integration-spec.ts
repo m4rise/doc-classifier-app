@@ -1,9 +1,11 @@
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../../app.module';
-import { resolveJwtRefreshSecret } from '../infrastructure/security/jwt-refresh-secret';
+import { AppConfiguration } from '../../config/app.config';
+import { getJwtRefreshSecret } from '../infrastructure/security/jwt-config';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
 
 interface RegisterResponseBody {
@@ -356,6 +358,8 @@ describe('AuthController integration', () => {
 
   it('POST /api/v1/auth/refresh returns 401 Refresh token expired when token is expired', async () => {
     const jwtService = app.get(JwtService);
+    const configService =
+      app.get<ConfigService<AppConfiguration, true>>(ConfigService);
     const expiredRefreshToken = jwtService.sign(
       {
         sub: 'expired-user',
@@ -363,7 +367,7 @@ describe('AuthController integration', () => {
         role: 'USER',
         jti: 'expired-jti',
       },
-      { secret: resolveJwtRefreshSecret(), expiresIn: '-1s' },
+      { secret: getJwtRefreshSecret(configService), expiresIn: '-1s' },
     );
 
     await request(app.getHttpServer())
