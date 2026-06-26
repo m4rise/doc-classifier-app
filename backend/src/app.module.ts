@@ -36,7 +36,7 @@ import { UsersModule } from './users/users.module';
         const rateLimit = configService.getOrThrow('rateLimit', {
           infer: true,
         });
-        return createThrottlerModuleOptions(rateLimit.global);
+        return createThrottlerModuleOptions(rateLimit);
       },
     }),
     LoggerModule.forRootAsync({

@@ -386,6 +386,14 @@ policy, Gemini provider options, and Prisma pool settings. Remaining Group B
 items after that PR are static throttle decorator policy and pre-Nest
 observability bootstrap reads.
 
+Follow-up issue #118 is the dedicated GitHub-only track for those remaining
+Group B items. Its implementation removes the local throttle env parser and
+routes static decorator policy through the typed rate-limit config initialized
+at bootstrap; it also routes pre-Nest observability bootstrap reads through the
+central config parser. No additional Group B item is intentionally deferred.
+`instrument.ts` remains outside Nest `ConfigService` by design because it must
+run before Nest modules are loaded.
+
 `DRIFT-005` and `DRIFT-006` remain valid follow-up tracks, but they should not
 be bundled into the config foundation PR unless a new issue explicitly asks for
 that broader scope.

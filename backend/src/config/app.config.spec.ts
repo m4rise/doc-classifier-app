@@ -1,4 +1,7 @@
-import { parseEnvironment } from './app.config';
+import {
+  parseEnvironment,
+  parseObservabilityBootstrapConfig,
+} from './app.config';
 
 describe('app config', () => {
   it('applies defaults for local and test environments', () => {
@@ -52,6 +55,18 @@ describe('app config', () => {
           ttlSeconds: 60,
           limit: 100,
         },
+        auth: {
+          ttlSeconds: 60,
+          loginLimit: 10,
+          sessionTtlSeconds: 60,
+          sessionLimit: 60,
+          registerTtlSeconds: 60,
+          registerLimit: 5,
+        },
+        upload: {
+          ttlSeconds: 60,
+          limit: 10,
+        },
       },
     });
   });
@@ -84,6 +99,14 @@ describe('app config', () => {
       GEMINI_TIMEOUT_MS: ' 12000 ',
       THROTTLE_TTL: ' 30 ',
       THROTTLE_LIMIT: ' 42 ',
+      THROTTLE_AUTH_TTL: ' 45 ',
+      THROTTLE_AUTH_LIMIT: ' 12 ',
+      THROTTLE_AUTH_SESSION_TTL: ' 75 ',
+      THROTTLE_AUTH_SESSION_LIMIT: ' 55 ',
+      THROTTLE_REGISTER_TTL: ' 90 ',
+      THROTTLE_REGISTER_LIMIT: ' 4 ',
+      THROTTLE_UPLOAD_TTL: ' 120 ',
+      THROTTLE_UPLOAD_LIMIT: ' 8 ',
       CONFIDENCE_THRESHOLD: ' 0.85 ',
       FILE_SIZE_LIMIT_MB: ' 12 ',
       DOCUMENT_DOWNLOAD_URL_TTL_SECONDS: ' 300 ',
@@ -149,6 +172,18 @@ describe('app config', () => {
           ttlSeconds: 30,
           limit: 42,
         },
+        auth: {
+          ttlSeconds: 45,
+          loginLimit: 12,
+          sessionTtlSeconds: 75,
+          sessionLimit: 55,
+          registerTtlSeconds: 90,
+          registerLimit: 4,
+        },
+        upload: {
+          ttlSeconds: 120,
+          limit: 8,
+        },
       },
     });
   });
@@ -161,6 +196,7 @@ describe('app config', () => {
         PRISMA_POOL_MAX: '11',
         GEMINI_TIMEOUT_MS: '120001',
         THROTTLE_TTL: '0',
+        THROTTLE_AUTH_SESSION_TTL: '2147484',
         CONFIDENCE_THRESHOLD: '1.1',
         DOCUMENT_DOWNLOAD_URL_TTL_SECONDS: '901',
       }),
@@ -192,5 +228,51 @@ describe('app config', () => {
         FILE_STORAGE_DRIVER: 'gcs',
       }),
     ).toThrow(/GCS_BUCKET_NAME is required when FILE_STORAGE_DRIVER=gcs/);
+  });
+
+  it('keeps pre-Nest observability bootstrap disabled when the OTLP endpoint is absent', () => {
+    expect(parseObservabilityBootstrapConfig({ NODE_ENV: 'test' })).toEqual({
+      sentry: {
+        dsn: undefined,
+        environment: 'test',
+      },
+      otel: undefined,
+    });
+  });
+
+  it('parses pre-Nest observability bootstrap values from trimmed env keys', () => {
+    expect(
+      parseObservabilityBootstrapConfig({
+        NODE_ENV: ' staging ',
+        SENTRY_DSN: ' https://example@sentry.io/1 ',
+        OTEL_EXPORTER_OTLP_ENDPOINT: ' https://otel.example.test/otlp ',
+        GRAFANA_INSTANCE_ID: ' grafana-instance ',
+        GRAFANA_API_KEY: ' grafana-key ',
+        OTEL_SERVICE_NAME: ' backend-service ',
+      }),
+    ).toEqual({
+      sentry: {
+        dsn: 'https://example@sentry.io/1',
+        environment: 'staging',
+      },
+      otel: {
+        endpoint: 'https://otel.example.test/otlp',
+        serviceName: 'backend-service',
+        grafana: {
+          instanceId: 'grafana-instance',
+          apiKey: 'grafana-key',
+        },
+      },
+    });
+  });
+
+  it('preserves the pre-Nest OTel service-name fallback', () => {
+    expect(
+      parseObservabilityBootstrapConfig({
+        OTEL_EXPORTER_OTLP_ENDPOINT: 'https://otel.example.test/otlp',
+      }).otel,
+    ).toMatchObject({
+      serviceName: 'nestjs-backend',
+    });
   });
 });
