@@ -394,6 +394,14 @@ central config parser. No additional Group B item is intentionally deferred.
 `instrument.ts` remains outside Nest `ConfigService` by design because it must
 run before Nest modules are loaded.
 
+Follow-up issue #120 is the dedicated GitHub-only track for Group C. Its
+implementation extracts the document list cursor Base64/JSON codec and strict
+payload validation into `documents/application/pagination/` without changing
+the `{ id, createdAt }` contract. No Group C item is intentionally deferred.
+Ownership derivation, stale/non-owned cursor rejection, and Prisma cursor
+construction remain in the use case/repository by design and are not codec
+responsibilities.
+
 `DRIFT-005` and `DRIFT-006` remain valid follow-up tracks, but they should not
 be bundled into the config foundation PR unless a new issue explicitly asks for
 that broader scope.
