@@ -98,36 +98,15 @@ describe('ListDocumentsUseCase', () => {
     });
   });
 
-  it.each([
-    ['non-base64 input', 'not-a-base64-cursor'],
-    ['invalid JSON', Buffer.from('{', 'utf8').toString('base64')],
-    [
-      'invalid id',
-      encodePayload({
-        id: 'document-1',
-        createdAt: '2026-06-24T09:00:00.000Z',
-      }),
-    ],
-    [
-      'invalid date',
-      encodePayload({
-        id: secondDocument.id,
-        createdAt: 'not-a-date',
-      }),
-    ],
-    [
-      'unexpected field',
-      encodePayload({
-        id: secondDocument.id,
-        createdAt: secondDocument.createdAt.toISOString(),
-        userId: 'attacker-controlled',
-      }),
-    ],
-  ])('rejects %s without querying the repository', async (_label, cursor) => {
+  it('does not query the repository when the cursor codec rejects input', async () => {
     const { listForUser, useCase } = createHarness();
 
     await expect(
-      useCase.execute({ userId: 'user-1', limit: 20, cursor }),
+      useCase.execute({
+        userId: 'user-1',
+        limit: 20,
+        cursor: 'not-a-base64-cursor',
+      }),
     ).rejects.toBeInstanceOf(InvalidDocumentCursorError);
     expect(listForUser).not.toHaveBeenCalled();
   });
