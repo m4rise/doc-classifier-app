@@ -1,5 +1,8 @@
 import { ExecutionContext } from '@nestjs/common';
+import type { Resolvable } from '@nestjs/throttler';
+import { parseEnvironment } from '../../../config/app.config';
 import {
+  configureRateLimitPolicy,
   createAuthSessionThrottleOptions,
   createLoginThrottleOptions,
   createRegisterThrottleOptions,
@@ -8,60 +11,59 @@ import {
 } from './throttle.config';
 
 describe('throttle config', () => {
-  const originalEnv = process.env;
-
   beforeEach(() => {
-    process.env = { ...originalEnv };
+    configureRateLimitPolicy(parseEnvironment({ NODE_ENV: 'test' }).rateLimit);
   });
 
-  afterAll(() => {
-    process.env = originalEnv;
-  });
+  it('uses typed config for the global throttler', () => {
+    const rateLimit = parseEnvironment({
+      THROTTLE_TTL: '30',
+      THROTTLE_LIMIT: '42',
+    }).rateLimit;
 
-  it('uses env vars for the global throttler', () => {
-    process.env.THROTTLE_TTL = '30';
-    process.env.THROTTLE_LIMIT = '42';
-
-    expect(createThrottlerModuleOptions()).toMatchObject({
+    expect(createThrottlerModuleOptions(rateLimit)).toMatchObject({
       errorMessage: 'Too Many Requests',
       throttlers: [{ ttl: 30000, limit: 42 }],
     });
   });
 
-  it('uses THROTTLE_AUTH_LIMIT for login throttling', () => {
-    process.env.THROTTLE_AUTH_TTL = '45';
-    process.env.THROTTLE_AUTH_LIMIT = '12';
+  it('uses typed config for login throttling', async () => {
+    configureRateLimitPolicy(
+      parseEnvironment({
+        THROTTLE_AUTH_TTL: '45',
+        THROTTLE_AUTH_LIMIT: '12',
+      }).rateLimit,
+    );
 
-    expect(createLoginThrottleOptions()).toMatchObject({
-      default: { ttl: 45000, limit: 12 },
-    });
+    const options = createLoginThrottleOptions();
+
+    await expect(resolveThrottleValue(options.default.ttl)).resolves.toBe(
+      45000,
+    );
+    await expect(resolveThrottleValue(options.default.limit)).resolves.toBe(12);
   });
 
-  it('uses register defaults when env vars are absent', () => {
-    delete process.env.THROTTLE_REGISTER_TTL;
-    delete process.env.THROTTLE_REGISTER_LIMIT;
+  it('uses register defaults when config values are absent', async () => {
+    const options = createRegisterThrottleOptions();
 
-    expect(createRegisterThrottleOptions()).toEqual({
-      default: { ttl: 60000, limit: 5 },
-    });
+    await expect(resolveThrottleValue(options.default.ttl)).resolves.toBe(
+      60000,
+    );
+    await expect(resolveThrottleValue(options.default.limit)).resolves.toBe(5);
   });
 
-  it('falls back to defaults for partial numeric env vars', () => {
-    process.env.THROTTLE_LIMIT = '42abc';
-    process.env.THROTTLE_TTL = '30.5';
+  it('resolves decorator values from the latest configured policy', async () => {
+    const options = createAuthSessionThrottleOptions();
 
-    expect(createThrottlerModuleOptions()).toMatchObject({
-      throttlers: [{ ttl: 60000, limit: 100 }],
-    });
-  });
+    configureRateLimitPolicy(
+      parseEnvironment({
+        THROTTLE_AUTH_SESSION_TTL: '8',
+        THROTTLE_AUTH_SESSION_LIMIT: '7',
+      }).rateLimit,
+    );
 
-  it('falls back to defaults for TTL values beyond the Node timer limit', () => {
-    process.env.THROTTLE_AUTH_TTL = '2147484';
-    process.env.THROTTLE_AUTH_LIMIT = '11';
-
-    expect(createLoginThrottleOptions()).toMatchObject({
-      default: { ttl: 60000, limit: 11 },
-    });
+    await expect(resolveThrottleValue(options.default.ttl)).resolves.toBe(8000);
+    await expect(resolveThrottleValue(options.default.limit)).resolves.toBe(7);
   });
 
   it('tracks login throttling by IP', () => {
@@ -125,6 +127,14 @@ describe('throttle config', () => {
     ).toBe('user:user-from-token');
   });
 });
+
+async function resolveThrottleValue(
+  value: Resolvable<number>,
+): Promise<number> {
+  return typeof value === 'function'
+    ? await value({} as ExecutionContext)
+    : value;
+}
 
 function createUnsignedJwt(payload: Record<string, unknown>): string {
   const header = Buffer.from(

@@ -59,6 +59,7 @@ const MAX_THROTTLE_TTL_SECONDS = 2_147_483;
 const DEFAULT_OTEL_ENDPOINT =
   'https://otlp-gateway-prod-gb-south-1.grafana.net/otlp';
 const DEFAULT_OTEL_SERVICE_NAME = 'doc-classifier-app-backend';
+const DEFAULT_OBSERVABILITY_BOOTSTRAP_SERVICE_NAME = 'nestjs-backend';
 const DEFAULT_OTEL_RESOURCE_ATTRIBUTES =
   'service.namespace=production,service.version=1.0.0,deployment.environment=production';
 
@@ -158,6 +159,21 @@ export interface AppConfiguration {
       metricsExporter: string;
       logsExporter: string;
     };
+    grafana: {
+      instanceId?: string;
+      apiKey?: string;
+    };
+  };
+}
+
+export interface ObservabilityBootstrapConfig {
+  sentry: {
+    dsn?: string;
+    environment: AppEnvironment;
+  };
+  otel?: {
+    endpoint: string;
+    serviceName: string;
     grafana: {
       instanceId?: string;
       apiKey?: string;
@@ -355,6 +371,28 @@ const environmentSchema = z
 type EnvironmentVariables = z.infer<typeof environmentSchema>;
 
 /**
+ * Minimal pre-Nest observability parser.
+ *
+ * `instrument.ts` must run before Nest modules are loaded, so it cannot use
+ * ConfigService. It also runs before `@nestjs/config` loads `.env`, so a raw
+ * missing OTLP endpoint keeps the existing bootstrap behavior: skip OTel.
+ */
+const observabilityBootstrapEnvironmentSchema = z.object({
+  NODE_ENV: appEnvironmentSchema,
+  SENTRY_DSN: optionalTrimmedString(),
+  OTEL_EXPORTER_OTLP_ENDPOINT: optionalTrimmedString(),
+  GRAFANA_INSTANCE_ID: optionalTrimmedString(),
+  GRAFANA_API_KEY: optionalTrimmedString(),
+  OTEL_SERVICE_NAME: trimmedStringWithDefault(
+    DEFAULT_OBSERVABILITY_BOOTSTRAP_SERVICE_NAME,
+  ),
+});
+
+type ObservabilityBootstrapEnvironmentVariables = z.infer<
+  typeof observabilityBootstrapEnvironmentSchema
+>;
+
+/**
  * Config factory registered with `ConfigModule.forRoot({ load: [...] })`.
  *
  * Nest first validates the merged `.env` + `process.env` input, then populates
@@ -387,6 +425,33 @@ export function parseEnvironment(
   return toAppConfiguration(parseEnvironmentVariables(environment));
 }
 
+export function loadObservabilityBootstrapConfig(): ObservabilityBootstrapConfig {
+  return parseObservabilityBootstrapConfig(process.env);
+}
+
+export function parseObservabilityBootstrapConfig(
+  environment: Record<string, unknown>,
+): ObservabilityBootstrapConfig {
+  const env = parseObservabilityBootstrapEnvironmentVariables(environment);
+
+  return {
+    sentry: {
+      dsn: env.SENTRY_DSN,
+      environment: env.NODE_ENV,
+    },
+    otel: env.OTEL_EXPORTER_OTLP_ENDPOINT
+      ? {
+          endpoint: env.OTEL_EXPORTER_OTLP_ENDPOINT,
+          serviceName: env.OTEL_SERVICE_NAME,
+          grafana: {
+            instanceId: env.GRAFANA_INSTANCE_ID,
+            apiKey: env.GRAFANA_API_KEY,
+          },
+        }
+      : undefined,
+  };
+}
+
 /**
  * Parse and format Zod validation errors consistently for startup and tests.
  */
@@ -398,6 +463,20 @@ function parseEnvironmentVariables(
   if (!result.success) {
     throw new Error(
       `Invalid environment configuration: ${formatZodIssues(result.error)}`,
+    );
+  }
+
+  return result.data;
+}
+
+function parseObservabilityBootstrapEnvironmentVariables(
+  environment: Record<string, unknown>,
+): ObservabilityBootstrapEnvironmentVariables {
+  const result = observabilityBootstrapEnvironmentSchema.safeParse(environment);
+
+  if (!result.success) {
+    throw new Error(
+      `Invalid observability bootstrap configuration: ${formatZodIssues(result.error)}`,
     );
   }
 
