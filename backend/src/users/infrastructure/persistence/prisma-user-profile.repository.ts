@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, Role } from '../../../generated/prisma';
+import { Role } from '../../../generated/prisma';
 import { PrismaService } from '../../../shared/infrastructure/database/prisma.service';
+import { isPrismaUniqueConstraintViolation } from '../../../shared/infrastructure/prisma/prisma-errors';
 import {
   UpdateUserProfileInput,
   UserProfileRepository,
@@ -27,13 +28,6 @@ function toDomainProfile(user: {
     user.email,
     toDomainRole(user.role),
     user.createdAt,
-  );
-}
-
-function isUniqueEmailConstraintViolation(error: unknown): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError &&
-    error.code === 'P2002'
   );
 }
 
@@ -83,7 +77,7 @@ export class PrismaUserProfileRepository extends UserProfileRepository {
 
       return toDomainProfile(user);
     } catch (error) {
-      if (isUniqueEmailConstraintViolation(error)) {
+      if (isPrismaUniqueConstraintViolation(error)) {
         throw new UserProfileEmailAlreadyInUseError();
       }
 

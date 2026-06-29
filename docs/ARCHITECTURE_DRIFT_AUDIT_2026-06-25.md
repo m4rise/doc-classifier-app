@@ -402,6 +402,24 @@ Ownership derivation, stale/non-owned cursor rejection, and Prisma cursor
 construction remain in the use case/repository by design and are not codec
 responsibilities.
 
+Follow-up issue #122 is the dedicated GitHub-only track for Group D. Its
+implementation extracts the proven cross-slice email syntax rule into
+`shared/domain` and Prisma `P2002` detection into `shared/infrastructure`. It
+keeps auth/users value objects, domain errors, and repository error translation
+local to their owning slices. Passport JWT expiration inspection is extracted
+only within auth because access and refresh guards intentionally retain distinct
+control flow and HTTP messages. The repeated production UUID syntax rule is
+owned locally by documents and reused by the cursor codec and storage-key
+validation; test regexes remain independent assertions. Focused unit tests lock
+the extracted primitives and intentional guard branches, while the existing
+PostgreSQL-backed integration suites remain the evidence for repository error
+translation and observable HTTP/JWT behavior. No mock repository tests are
+added merely to replace an unavailable integration environment. No Group D item
+extraction is deferred. The intentionally preserved breadth of the email regex
+and all-`P2002` repository mapping are product-contract questions outside this
+refactor, not incomplete helper extraction. No future Epic 4-9 behavior is
+implemented by this remediation.
+
 `DRIFT-005` and `DRIFT-006` remain valid follow-up tracks, but they should not
 be bundled into the config foundation PR unless a new issue explicitly asks for
 that broader scope.

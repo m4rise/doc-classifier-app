@@ -301,6 +301,14 @@ Additional targeted checks:
 - `npm run test:e2e`
 - backend or frontend package-level tests when the change is localized.
 
+Choose checks by the behavior changed, not by which dependencies happen to be
+available locally. Unit tests prove pure helpers and local branch decisions;
+integration tests remain required for behavior that depends on PostgreSQL,
+Prisma adapters, Passport/JWT, or HTTP mapping. If an integration check is
+blocked because its service is unavailable, report it as blocked and rerun it
+when the service is restored. Do not add mock-based tests solely as a substitute
+for that blocked verification.
+
 Husky hooks:
 
 - `.husky/pre-commit` runs `npx lint-staged`.
