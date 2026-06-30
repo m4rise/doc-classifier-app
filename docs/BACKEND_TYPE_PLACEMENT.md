@@ -9,8 +9,9 @@ contracts.
 ## Principles
 
 - Keep ownership with the slice and layer that own the semantics. A documents
-  application contract belongs under `documents/application`; a Prisma mapper
-  belongs under the documents infrastructure adapter.
+  application contract belongs under `documents/application`; a domain value
+  object stays under the slice domain; a Prisma mapper belongs under the
+  documents infrastructure adapter.
 - Keep private one-off types in the implementation file when they are small,
   adapter-local, or not imported elsewhere.
 - Use the slice `application/` root for application-level contracts consumed by
@@ -32,6 +33,19 @@ contracts.
 - Deduplicate integration-test response bodies through local test support only
   when repetition exists today. Keep feature-specific test response bodies in
   the spec that owns them.
+
+## Layer Notes
+
+- `domain/` owns business language: entities, value objects, domain errors,
+  pure domain services, and stable domain-owned types. Do not move a domain
+  type to `application/` just because it is exported.
+- `application/` owns use-case orchestration contracts, ports, DI tokens, and
+  slice-level application contracts.
+- `infrastructure/` owns adapter structural types, persistence selections, and
+  mappers when they describe technical shapes.
+- `presentation/` owns request and response typing plus HTTP/Nest-specific
+  contracts, unless the shape is a generated DTO or a repeated test-only
+  helper.
 
 ## Future Work Boundary
 
