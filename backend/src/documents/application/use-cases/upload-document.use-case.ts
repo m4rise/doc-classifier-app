@@ -4,21 +4,13 @@ import {
   InvalidFileTypeError,
 } from '../../domain/errors/upload-document.errors';
 import { validateDocumentFileType } from '../../domain/services/document-file-policy';
-import {
-  DocumentRepository,
-  UploadedDocument,
-} from '../ports/document.repository.port';
+import { DocumentRepository } from '../ports/document.repository.port';
 import { FileStorage } from '../ports/file-storage.port';
 import { FileTypeDetector } from '../ports/file-type-detector.port';
-
-export interface UploadDocumentInput {
-  userId: string;
-  originalName: string;
-  buffer: Buffer;
-  sizeBytes: number;
-}
-
-export type UploadDocumentOutput = UploadedDocument;
+import type {
+  UploadDocumentInput,
+  UploadDocumentOutput,
+} from './upload-document.types';
 
 export class UploadDocumentUseCase {
   constructor(

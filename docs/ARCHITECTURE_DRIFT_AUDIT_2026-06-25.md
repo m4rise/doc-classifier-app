@@ -420,8 +420,20 @@ and all-`P2002` repository mapping are product-contract questions outside this
 refactor, not incomplete helper extraction. No future Epic 4-9 behavior is
 implemented by this remediation.
 
-`DRIFT-005` and `DRIFT-006` remain valid follow-up tracks, but they should not
-be bundled into the config foundation PR unless a new issue explicitly asks for
+Follow-up issue #124 is the dedicated GitHub-only track for DRIFT-005. Its
+implementation adds [Backend Type Placement Guideline](./BACKEND_TYPE_PLACEMENT.md),
+moves currently reused use-case contracts to owner-aligned type files, extracts
+the documents Prisma mapper/selections from the repository, keeps exported
+structural adapter contracts adjacent to their adapter, and deduplicates only
+the integration-test response-body helpers that are repeated today. One-off
+use-case inputs/results stay local and private, GCS structural client types stay
+inside the adapter because they are an implementation-only seam, and
+feature-specific integration response bodies stay in their owning specs. No
+generic `shared` type folder is introduced, and no future Epic 4-9 contracts are
+implemented by this remediation.
+
+`DRIFT-006` remains a valid follow-up track, but it should not be bundled into
+DRIFT-005 or the config foundation work unless a new issue explicitly asks for
 that broader scope.
 
 ## Notes For Future Agents

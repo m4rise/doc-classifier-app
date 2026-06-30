@@ -7,24 +7,13 @@ import { AppModule } from '../../app.module';
 import { AppConfiguration } from '../../config/app.config';
 import { getJwtRefreshSecret } from '../infrastructure/security/jwt-config';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
-
-interface RegisterResponseBody {
-  id: string;
-  email: string;
-  role: string;
-}
-
-interface LoginResponseBody {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
-
-interface RefreshTokenResponseBody {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
+import { asErrorMessageBody } from '../../../test/integration-http.helpers';
+import type {
+  HttpResponseBody,
+  LoginResponseBody,
+  RefreshTokenResponseBody,
+  RegisterResponseBody,
+} from '../../../test/integration-http.helpers';
 
 interface AuthenticatedUserResponseBody {
   userId: string;
@@ -42,18 +31,6 @@ interface PersistedUserWithConsent {
   id: string;
   passwordHash: string;
   consentRecords: PersistedConsentRecord[];
-}
-
-interface HttpResponseBody {
-  body: unknown;
-}
-
-function asErrorMessageBody(value: unknown): { message?: unknown } {
-  if (typeof value === 'object' && value !== null) {
-    return value;
-  }
-
-  return {};
 }
 
 function asPersistedUserWithConsent(

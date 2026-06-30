@@ -3,7 +3,7 @@ import { Storage } from '@google-cloud/storage';
 import { FileStorage } from '../../application/ports/file-storage.port';
 import { assertValidDocumentStorageKey } from './document-storage-key';
 
-export interface GcsFileStorageConfig {
+interface GcsFileStorageConfig {
   bucketName: string;
   projectId: string;
 }

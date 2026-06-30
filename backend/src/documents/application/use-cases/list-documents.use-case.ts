@@ -8,13 +8,13 @@ import {
   DocumentRepository,
 } from '../ports/document.repository.port';
 
-export interface ListDocumentsInput {
+interface ListDocumentsInput {
   userId: string;
   limit: number;
   cursor?: string;
 }
 
-export interface ListDocumentsResult {
+interface ListDocumentsResult {
   data: DocumentListItem[];
   nextCursor: string | null;
   total: number;

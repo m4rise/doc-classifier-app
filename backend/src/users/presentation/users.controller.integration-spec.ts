@@ -4,16 +4,12 @@ import request from 'supertest';
 import { AppModule } from '../../app.module';
 import { Role } from '../../generated/prisma';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
-
-interface RegisterResponseBody {
-  id: string;
-  email: string;
-  role: string;
-}
-
-interface LoginResponseBody {
-  accessToken: string;
-}
+import { asErrorMessageBody } from '../../../test/integration-http.helpers';
+import type {
+  HttpResponseBody,
+  LoginResponseBody,
+  RegisterResponseBody,
+} from '../../../test/integration-http.helpers';
 
 interface UserProfileResponseBody {
   id: string;
@@ -23,23 +19,11 @@ interface UserProfileResponseBody {
   passwordHash?: string;
 }
 
-interface HttpResponseBody {
-  body: unknown;
-}
-
 let forwardedIpHost = 50;
 
 function nextForwardedIp(): string {
   forwardedIpHost += 1;
   return `198.51.100.${forwardedIpHost}`;
-}
-
-function asErrorMessageBody(value: unknown): { message?: unknown } {
-  if (typeof value === 'object' && value !== null) {
-    return value;
-  }
-
-  return {};
 }
 
 async function registerAndLogin(
