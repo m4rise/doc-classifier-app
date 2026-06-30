@@ -1,8 +1,10 @@
 # Backend Type Placement Guideline
 
-This guideline applies ADR-ARCH-002. It is intentionally small: type placement
-should preserve vertical-slice ownership, reduce review noise where reuse is
-already proven, and avoid generic shared contracts.
+This guideline applies
+[ADR-ARCH-002](./adr/ADR-ARCH-002-backend-vertical-slice.md). It is
+intentionally small: type placement should preserve vertical-slice ownership,
+reduce review noise where reuse is already proven, and avoid generic shared
+contracts.
 
 ## Principles
 

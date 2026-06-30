@@ -421,12 +421,12 @@ refactor, not incomplete helper extraction. No future Epic 4-9 behavior is
 implemented by this remediation.
 
 Follow-up issue #124 is the dedicated GitHub-only track for DRIFT-005. Its
-implementation adds a small backend type-placement guideline, moves only
-currently reused use-case contracts to adjacent type files, extracts the
-documents Prisma mapper/selections from the repository, and deduplicates only
-the integration-test response-body helpers that are repeated today. One-off
-use-case inputs/results stay local and private, GCS structural client types stay
-inside the adapter because they are an adapter-local test seam, and
+implementation adds [Backend Type Placement Guideline](./BACKEND_TYPE_PLACEMENT.md),
+moves only currently reused use-case contracts to adjacent type files, extracts
+the documents Prisma mapper/selections from the repository, and deduplicates
+only the integration-test response-body helpers that are repeated today.
+One-off use-case inputs/results stay local and private, GCS structural client
+types stay inside the adapter because they are an adapter-local test seam, and
 feature-specific integration response bodies stay in their owning specs. No
 generic `shared` type folder is introduced, and no future Epic 4-9 contracts are
 implemented by this remediation.

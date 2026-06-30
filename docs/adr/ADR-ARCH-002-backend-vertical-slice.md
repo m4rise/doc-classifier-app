@@ -87,6 +87,14 @@ contrat n'y entre que s'il est réellement utilisé par plusieurs slices, stable
 et sans propriétaire métier naturel. Un port consommé par une seule slice reste
 local à cette slice.
 
+### Clarification — placement des contrats exportés
+
+Les contrats exportés suivent la même règle d'ownership que les ports et les
+primitives partagées. Un type consommé par une seule slice ou un seul adapter
+reste proche de son propriétaire naturel ; il ne devient pas `shared/` parce
+qu'il est exporté ou utilisé par un test. Les détails opérationnels de placement
+sont décrits dans [Backend Type Placement Guideline](../BACKEND_TYPE_PLACEMENT.md).
+
 ### Clarification — primitives partagées et stratégie de preuve
 
 Une extraction partagée peut rester plus étroite que les contrats de ses
