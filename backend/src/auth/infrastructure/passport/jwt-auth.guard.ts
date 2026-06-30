@@ -1,5 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
+import { isPassportJwtTokenExpiredError } from './passport-jwt-error-info';
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
@@ -13,7 +14,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     }
 
     if (!user) {
-      if (isTokenExpiredError(info)) {
+      if (isPassportJwtTokenExpiredError(info)) {
         throw new UnauthorizedException('Token expired');
       }
 
@@ -22,13 +23,4 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
 
     return user;
   }
-}
-
-function isTokenExpiredError(info: unknown): boolean {
-  return (
-    typeof info === 'object' &&
-    info !== null &&
-    'name' in info &&
-    info.name === 'TokenExpiredError'
-  );
 }

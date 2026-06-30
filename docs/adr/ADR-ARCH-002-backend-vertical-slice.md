@@ -87,6 +87,29 @@ contrat n'y entre que s'il est réellement utilisé par plusieurs slices, stable
 et sans propriétaire métier naturel. Un port consommé par une seule slice reste
 local à cette slice.
 
+### Clarification — primitives partagées et stratégie de preuve
+
+Une extraction partagée peut rester plus étroite que les contrats de ses
+consommateurs. Une primitive pure de normalisation ou de validation peut vivre
+dans `shared/domain`, tandis que les value objects, erreurs et décisions métier
+restent dans leurs slices. De même, un predicate lié à une technologie et utilisé
+par plusieurs slices peut vivre dans `shared/infrastructure`, mais la traduction
+d'une erreur technique en erreur métier ou HTTP reste chez le repository, le
+guard ou l'adapter propriétaire.
+
+La présence de tests, d'un futur consommateur ou de deux formes de code seulement
+similaires ne démontre pas à elle seule une abstraction partagée. L'admission dans
+`shared/` repose sur des consommateurs de production actuels, une règle identique
+et stable, et l'absence d'un propriétaire métier naturel.
+
+Les preuves suivent la même frontière de responsabilité : les tests unitaires
+verrouillent la primitive extraite et les décisions locales ; les tests
+d'intégration verrouillent les contrats qui dépendent réellement de Passport,
+Prisma/PostgreSQL ou du mapping HTTP. Une vérification d'intégration bloquée par
+l'environnement est signalée puis rejouée lorsque la dépendance redevient
+disponible ; elle n'est pas remplacée par des mocks ajoutés uniquement pour
+contourner cette indisponibilité.
+
 ## Conséquences
 
 - Les imports directs depuis le `domain/` d'une autre slice sont évités ; les
@@ -98,5 +121,7 @@ local à cette slice.
 - Enforcements lint requis sur les imports inter-couches pour garantir les frontières.
 - Les use-cases applicatifs dépendent de ports locaux plutôt que d'adapters
   concrets lorsque cela apporte une valeur claire.
+- Les helpers partagés restent mécaniques et étroits ; les décisions métier,
+  persistence et HTTP demeurent testées chez leur propriétaire naturel.
 - La clean architecture reste un guide de dépendances, pas une cérémonie
   systématique.

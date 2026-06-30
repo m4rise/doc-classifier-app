@@ -1,13 +1,11 @@
 import { z } from 'zod';
+import { isUuid } from '../../domain/validation/uuid';
 import { InvalidDocumentCursorError } from '../errors/list-documents.errors';
 import { DocumentListCursor } from '../ports/document.repository.port';
 
-const uuidPattern =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
 const serializedDocumentCursorSchema = z
   .object({
-    id: z.string().regex(uuidPattern),
+    id: z.string().refine(isUuid),
     createdAt: z.string().refine(isCanonicalIsoDate),
   })
   .strict();
