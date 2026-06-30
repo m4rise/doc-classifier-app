@@ -1,9 +1,7 @@
 import type { DocumentDetails } from '../ports/document.repository.port';
-import {
-  UploadDocumentInput,
-  UploadDocumentUseCase,
-} from '../use-cases/upload-document.use-case';
+import { UploadDocumentUseCase } from '../use-cases/upload-document.use-case';
 import { ProcessDocumentUseCase } from '../use-cases/process-document.use-case';
+import type { UploadDocumentInput } from '../use-cases/upload-document.types';
 
 /**
  * Temporary synchronous composition required by the MVP HTTP contract.

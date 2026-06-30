@@ -1,7 +1,5 @@
-import {
-  AuthTokensResult,
-  IssueAuthTokensUseCase,
-} from './issue-auth-tokens.use-case';
+import { IssueAuthTokensUseCase } from './issue-auth-tokens.use-case';
+import type { AuthTokensResult } from './issue-auth-tokens.types';
 import { JwtRefreshTokenPayload } from '../jwt-refresh-token-payload';
 import { RefreshTokenHasher } from '../ports/refresh-token-hasher.port';
 import { RefreshTokenRepository } from '../ports/refresh-token.repository.port';
@@ -12,7 +10,7 @@ import {
 } from '../../domain/errors/refresh-token.errors';
 import { AuthTokenIssuer } from '../ports/auth-token-issuer.port';
 
-export interface RefreshTokenInput {
+interface RefreshTokenInput {
   refreshToken: string;
   payload: JwtRefreshTokenPayload;
 }

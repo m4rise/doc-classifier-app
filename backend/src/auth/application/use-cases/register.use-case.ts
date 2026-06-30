@@ -9,7 +9,7 @@ import { Email } from '../../domain/value-objects/email.vo';
 import { PasswordHasher } from '../ports/password-hasher.port';
 import { UserRepository } from '../ports/user.repository.port';
 
-export interface RegisterInput {
+interface RegisterInput {
   email: string;
   password: string;
   tosAccepted: boolean;

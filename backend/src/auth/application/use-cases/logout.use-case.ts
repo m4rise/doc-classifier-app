@@ -1,6 +1,6 @@
 import { RefreshTokenRepository } from '../ports/refresh-token.repository.port';
 
-export interface LogoutInput {
+interface LogoutInput {
   userId: string;
 }
 

@@ -2,12 +2,7 @@ import { AuthenticatedUser } from '../authenticated-user';
 import { AuthTokenIssuer } from '../ports/auth-token-issuer.port';
 import { RefreshTokenHasher } from '../ports/refresh-token-hasher.port';
 import { RefreshTokenRepository } from '../ports/refresh-token.repository.port';
-
-export interface AuthTokensResult {
-  accessToken: string;
-  refreshToken: string;
-  expiresIn: number;
-}
+import type { AuthTokensResult } from './issue-auth-tokens.types';
 
 export class IssueAuthTokensUseCase {
   constructor(

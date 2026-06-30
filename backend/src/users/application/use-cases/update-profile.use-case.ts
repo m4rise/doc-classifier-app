@@ -9,7 +9,7 @@ import {
 } from '../../domain/value-objects/profile-email.vo';
 import { UserProfileRepository } from '../ports/user-profile.repository.port';
 
-export interface UpdateProfileInput {
+interface UpdateProfileInput {
   userId: string;
   email?: string;
 }

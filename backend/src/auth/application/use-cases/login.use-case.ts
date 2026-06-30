@@ -4,7 +4,7 @@ import { UserRepository } from '../ports/user.repository.port';
 import { InvalidCredentialsError } from '../../domain/errors/login.errors';
 import { Email } from '../../domain/value-objects/email.vo';
 
-export interface LoginInput {
+interface LoginInput {
   email: string;
   password: string;
 }

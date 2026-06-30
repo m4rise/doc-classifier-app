@@ -9,14 +9,12 @@ import { DOCUMENT_ANALYZER } from '../application/documents.tokens';
 import { DocumentAnalysisTimeoutError } from '../application/errors/document-analysis.errors';
 import { DocumentStatus } from '../../generated/prisma';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
-
-interface RegisterResponseBody {
-  id: string;
-}
-
-interface LoginResponseBody {
-  accessToken: string;
-}
+import { asErrorMessageBody } from '../../../test/integration-http.helpers';
+import type {
+  HttpResponseBody,
+  LoginResponseBody,
+  RegisterResponseBody,
+} from '../../../test/integration-http.helpers';
 
 interface UploadDocumentResponseBody {
   id: string;
@@ -58,10 +56,6 @@ interface ListDocumentsResponseBody {
   total: number;
 }
 
-interface HttpResponseBody {
-  body: unknown;
-}
-
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -70,14 +64,6 @@ let forwardedIpHost = 100;
 function nextForwardedIp(): string {
   forwardedIpHost += 1;
   return `198.51.100.${forwardedIpHost}`;
-}
-
-function asErrorMessageBody(value: unknown): { message?: unknown } {
-  if (typeof value === 'object' && value !== null) {
-    return value;
-  }
-
-  return {};
 }
 
 function encodeCursorPayload(payload: object): string {
