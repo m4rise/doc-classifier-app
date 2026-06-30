@@ -13,9 +13,15 @@ contracts.
   belongs under the documents infrastructure adapter.
 - Keep private one-off types in the implementation file when they are small,
   adapter-local, or not imported elsewhere.
-- Move exported contracts to an adjacent `*.types.ts` file when another file
-  already consumes them, or when the implementation file has become difficult
-  to review because contracts dominate the top of the file.
+- Use the slice `application/` root for application-level contracts consumed by
+  multiple operations or adapters inside the slice, such as authenticated
+  principals, token payloads, or auth token results.
+- Move operation-specific exported contracts to an adjacent `*.types.ts` file
+  when another file already consumes them, or when the implementation file has
+  become difficult to review because contracts dominate the top of the file.
+- Use adapter-adjacent `*.types.ts` files for exported structural adapter
+  contracts that tests or nearby adapter code need to type, while keeping
+  implementation-only structural types private.
 - Do not move contracts to `shared/` unless production code already reuses the
   same stable rule across slices and no slice has a more natural ownership
   claim.

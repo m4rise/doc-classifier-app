@@ -1,5 +1,5 @@
 import { IssueAuthTokensUseCase } from './issue-auth-tokens.use-case';
-import type { AuthTokensResult } from './issue-auth-tokens.types';
+import type { AuthTokensResult } from '../auth-tokens-result';
 import { JwtRefreshTokenPayload } from '../jwt-refresh-token-payload';
 import { RefreshTokenHasher } from '../ports/refresh-token-hasher.port';
 import { RefreshTokenRepository } from '../ports/refresh-token.repository.port';

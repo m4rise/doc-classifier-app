@@ -1,8 +1,8 @@
 import { AuthenticatedUser } from '../authenticated-user';
+import type { AuthTokensResult } from '../auth-tokens-result';
 import { AuthTokenIssuer } from '../ports/auth-token-issuer.port';
 import { RefreshTokenHasher } from '../ports/refresh-token-hasher.port';
 import { RefreshTokenRepository } from '../ports/refresh-token.repository.port';
-import type { AuthTokensResult } from './issue-auth-tokens.types';
 
 export class IssueAuthTokensUseCase {
   constructor(

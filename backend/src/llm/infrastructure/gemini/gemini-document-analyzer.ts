@@ -3,7 +3,6 @@ import {
   GenerativeModel,
   GoogleGenerativeAI,
   Part,
-  SingleRequestOptions,
 } from '@google/generative-ai';
 import { ZodError } from 'zod';
 import {
@@ -17,13 +16,7 @@ import {
 } from '../../../documents/application/errors/document-analysis.errors';
 import { DOCUMENT_ANALYSIS_PROMPT } from './prompts/document-analysis.prompt';
 import { GeminiAnalysisSchema } from './schemas/gemini-analysis.schema';
-
-export interface GeminiContentGenerator {
-  generateContent(
-    request: Array<string | Part>,
-    requestOptions?: SingleRequestOptions,
-  ): Promise<GenerateContentResult>;
-}
+import type { GeminiContentGenerator } from './gemini-document-analyzer.types';
 
 interface GeminiDocumentAnalyzerOptions {
   apiKey?: string;

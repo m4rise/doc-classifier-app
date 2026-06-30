@@ -3,10 +3,8 @@ import {
   DocumentAnalysisTimeoutError,
   InvalidDocumentAnalysisError,
 } from '../../../documents/application/errors/document-analysis.errors';
-import {
-  GeminiContentGenerator,
-  GeminiDocumentAnalyzer,
-} from './gemini-document-analyzer';
+import { GeminiDocumentAnalyzer } from './gemini-document-analyzer';
+import type { GeminiContentGenerator } from './gemini-document-analyzer.types';
 import { DOCUMENT_ANALYSIS_PROMPT } from './prompts/document-analysis.prompt';
 
 describe('GeminiDocumentAnalyzer', () => {
