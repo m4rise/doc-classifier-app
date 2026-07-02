@@ -1,4 +1,4 @@
 interface:
   display_name: "BMAD GitHub Dev Story"
   short_description: "Implement BMAD stories from GitHub issues"
-  default_prompt: "Use $bmad-github-dev-story to implement the current GitHub story issue with BMAD context."
+  default_prompt: "Use $bmad-github-dev-story to resolve and resume the current GitHub story's existing issue, linked PR, and branch before implementation. Treat GitHub as source of truth, use linked BMAD only as context, and do not create duplicate or follow-up GitHub resources without explicit authorization."

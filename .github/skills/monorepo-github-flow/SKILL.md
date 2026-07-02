@@ -17,6 +17,10 @@ Automate and standardize the process of:
 
 **Best practice:** Always review the generated issue/PR body before submission, even if automated.
 
+**Creation invariant:** Resume existing GitHub work before creating resources.
+Issue, branch, and PR creation are last-resort transitions after remote and local
+identity resolution, never default setup steps.
+
 ---
 
 ## Repository Preflight
@@ -30,6 +34,33 @@ Before any Mode A or Mode B branch, issue, PR, or diff-first action:
 - For Mode B GitHub-only work, resolve the app repository using only Git roots, path names, app repository files, and GitHub templates; do not inspect specs/BMAD content while finding the correct repository.
 - If multiple candidate repositories match, stop and ask the user for the intended repository root.
 
+## Resume-First Identity Resolution
+
+Run this resolution before `gh issue create`, branch creation, or `gh pr create`,
+and repeat the relevant lookup immediately before the mutation to avoid a race
+or stale context:
+
+1. Identify the primary issue from the request, current branch, PR metadata, or
+   local diff. If a primary issue is supplied, never create a replacement.
+2. Read the issue's development links, timeline, comments, closing references,
+   and linked PRs. Search PRs by issue reference as a fallback; do not treat a
+   clean worktree or local reflog as proof that no PR exists.
+3. Inspect matching PR states and head branches, then fetch/check matching remote
+   and local branches, including the issue's suggested branch.
+4. Select exactly one path:
+   - open PR -> resume its head branch and update that PR;
+   - existing branch without an open PR -> resume the branch and later create at
+     most one PR if authorized;
+   - closed-unmerged PR -> ask whether to reopen or replace it;
+   - merged PR -> reconcile an open issue, or require a new issue for new scope;
+   - no issue in Mode B -> create one only when authorized, then resolve again;
+   - issue only -> create its suggested/derived branch only when implementation
+     is authorized.
+
+An open linked PR's head branch is authoritative over stale branch guidance.
+Never create a parallel branch or duplicate PR merely because the current local
+checkout differs. Report the resolved issue, branch, and PR before mutation.
+
 ---
 
 ## Workflow Mode Selection
@@ -39,7 +70,9 @@ Use exactly one mode before starting branch or PR work:
 - **Mode A - BMAD story issue:** Use `bmad-github-dev-story` first. It owns the issue resolver, AC, DoD, DoR, implementation scope, and GitHub-first source-of-truth rule.
 - **Mode B - GitHub-only work:** Use this skill standalone. GitHub issue + PR are the whole operational record. Do not require BMAD artifacts, do not inspect the specs repo, do not write BMAD metadata, and do not expect back-sync.
 
-For Mode B, create or use a GitHub issue before branch creation and implementation for every mergeable PR.
+For Mode B, resolve and use an existing GitHub issue before branch creation and
+implementation for every mergeable PR. Create one only when none matches and the
+request authorizes creation.
 
 Mode B can start from either:
 - **Issue-first intake:** the user provides an existing issue or asks to create one from a request.
@@ -54,7 +87,10 @@ For diff-first intake, inspect the local diff before drafting GitHub content:
 - draft the PR body in English from the same evidence;
 - if the diff contains unrelated changes or the intent is ambiguous, stop and ask before creating an issue or PR.
 
-When diff-first work is currently on `main` with uncommitted changes, do not commit on `main`. Create or draft the GitHub issue first, then create an issue-numbered branch from the current worktree so the uncommitted changes move with the checkout.
+When diff-first work is currently on `main` with uncommitted changes, do not
+commit on `main`. Resolve an existing issue first; only draft or create one when
+none matches. Then resume an existing issue branch, or create one from the
+current worktree when authorized, so the uncommitted changes move with checkout.
 
 Use `.github/ISSUE_TEMPLATE/feature_request.md` by default for non-BMAD features, improvements, refactors, tooling, documentation, and small improvised changes. Use `.github/ISSUE_TEMPLATE/bug_report.md` only for reproducible bugs or regressions. Do not use `.github/ISSUE_TEMPLATE/story.md` for Mode B because it carries BMAD story traceability fields (`Project Key`, `Story ID`, `Epic`, `BMAD Source`, `Suggested Branch`).
 
@@ -101,9 +137,11 @@ When generating the final issue or PR body, preserve GitHub autolinking: do not 
 ### 1. Branch Creation
 
 
-- Check the issue number first. For mergeable PRs, a primary issue is required because `.github/workflows/pr-traceability-guard.yml` blocks PRs to `main` without a closing keyword, except Renovate bot PRs.
+- Complete Resume-First Identity Resolution first. For mergeable PRs, a primary issue is required because `.github/workflows/pr-traceability-guard.yml` blocks PRs to `main` without a closing keyword, except Renovate bot PRs.
 - For diff-first work with no issue yet, draft and create the GitHub issue before creating the branch. If the user asked for a dry run, stop after the issue and PR drafts plus proposed commands.
-- For BMAD story issues, use the `Suggested Branch` from the issue when present. If absent, derive a branch from the primary issue number.
+- For BMAD story issues, resume an open linked PR's head branch first. Otherwise
+  resume an existing `Suggested Branch`; derive and create a branch only when
+  neither exists.
 - For GitHub-only feature or bug work, derive the branch from the primary issue number.
 - If you skip syncing main, make sure your base is up to date and you are not introducing unnecessary conflicts.
 - Name the branch according to the pattern:
@@ -112,7 +150,8 @@ When generating the final issue or PR body, preserve GitHub autolinking: do not 
     - Example:
         - `feature/DC-1234-add-login-form`
         - `fix/DC-5678-fix-auth-bug`
-- Create the branch (pattern):
+- Only after the resolution gate proves no matching branch or PR exists, create
+  the branch (pattern):
     ```sh
     git checkout -b feature/DC-<issue-number>-<short-desc>
     ```
@@ -140,7 +179,11 @@ When generating the final issue or PR body, preserve GitHub autolinking: do not 
 ### 3. Issue Creation (GH CLI + template)
 
 
-- Generate a temporary file for the body (e.g. `/tmp/issue_body_<desc>.md`).
+- Issue creation requires a request that authorizes it. Before drafting or
+  creating, search open and closed issues for the same work, and reuse a matching
+  issue. A request naming an issue always means reuse it.
+- Generate a temporary file for the body in the operating system's temporary
+  directory (e.g. `<temp-dir>/issue_body_<desc>.md`).
 - Choose the template deliberately:
     - Existing BMAD story issue: do not create a new issue.
     - New BMAD story or epic: prefer the BMAD-to-GitHub sync workflow from the specs repo. If manual creation is explicitly requested, use `.github/ISSUE_TEMPLATE/story.md` or `.github/ISSUE_TEMPLATE/epic.md` and keep GitHub AC/DoD/DoR authoritative after creation.
@@ -158,19 +201,27 @@ When generating the final issue or PR body, preserve GitHub autolinking: do not 
     - `Traceability`: use `N/A - GitHub-only work` for BMAD traceability unless the diff explicitly includes a real BMAD story trace.
 - Create the issue via GH CLI (pattern):
     ```sh
-    gh issue create --title "<title>" --body-file /tmp/issue_body_<desc>.md --label "<labels>" --assignee "<user>"
+    gh issue create --title "<title>" --body-file <temp-dir>/issue_body_<desc>.md --label "<labels>" --assignee "<user>"
     ```
     Example:
     ```sh
-    gh issue create --title "Add login form validation" --body-file /tmp/issue_body_login.md --label "frontend" --assignee "alice"
+    gh issue create --title "Add login form validation" --body-file <temp-dir>/issue_body_login.md --label "frontend" --assignee "alice"
     ```
 - Retrieve the issue number for use in branch/PR naming (automatically or from the returned URL).
 - **Tip:** Pre-fill the template in an editor to avoid formatting errors.
+- Architecture or operational debt mentioned during implementation does not
+  authorize a follow-up issue. Search for an existing issue, then obtain explicit
+  user approval before creating a new follow-up; otherwise leave a draft in the
+  PR notes.
 
 ### 4. Pull Request Creation (GH CLI + template)
 
 
-- Generate a temporary file for the body (e.g. `/tmp/pr_body_<desc>.md`).
+- Resolve linked PRs and PRs for the selected head branch again. If one is open,
+  update it; never call `gh pr create`. If one is closed-unmerged or merged, use
+  the resolution gate rather than silently replacing it.
+- Generate a temporary file for the body in the operating system's temporary
+  directory (e.g. `<temp-dir>/pr_body_<desc>.md`).
 - Fill out every section of the `.github/PULL_REQUEST_TEMPLATE.md` template in English, with clear and relevant content.
     - Example title: `feat(auth): add login form validation`
     - `Related Work`: keep the template field names. For GitHub-only work, put the primary issue in `User Story`, `Closes #<primary-issue>` in `Closing Issue (required)`, and `N/A - GitHub-only work` in BMAD-only fields that do not apply.
@@ -178,13 +229,14 @@ When generating the final issue or PR body, preserve GitHub autolinking: do not 
     - `Closing Issue (required)`: use `Closes #<primary-issue>` when the PR completes the issue.
     - Do not use a closing keyword for an epic unless the PR actually completes that epic.
     - In the final PR body, emit GitHub references as plain text, not inline code: write `Closes #123`, `Related to #456`, and `feature/DC-123-short-desc` without surrounding backticks so GitHub can autolink them.
-- Create the PR via GH CLI (pattern):
+- Only when no PR exists for the issue/head and creation is authorized, create
+  the PR via GH CLI (pattern):
     ```sh
-    gh pr create --base main --head feature/DC-<issue-number>-<short-desc> --title "<commit message or PR title>" --body-file /tmp/pr_body_<desc>.md
+    gh pr create --base main --head feature/DC-<issue-number>-<short-desc> --title "<commit message or PR title>" --body-file <temp-dir>/pr_body_<desc>.md
     ```
     Example:
     ```sh
-    gh pr create --base main --head feature/DC-1234-add-login-form --title "feat(auth): add login form validation" --body-file /tmp/pr_body_login.md
+    gh pr create --base main --head feature/DC-1234-add-login-form --title "feat(auth): add login form validation" --body-file <temp-dir>/pr_body_login.md
     ```
 - **Best practices:**
     - Review the diff and PR body before submission.
@@ -198,13 +250,18 @@ When generating the final issue or PR body, preserve GitHub autolinking: do not 
 - Branch, issue, commit, and PR are all in English and consistent.
 - For diff-first work, issue title, issue AC/DoD, branch slug, commit message, and PR summary all describe the same coherent change set.
 - Commit message follows commitlint config and Conventional Commits.
-- Issue and PR are created via GH CLI with temporary files for bodies to avoid shell interpretation issues.
+- When issue or PR creation is required and authorized, it uses GH CLI with
+  temporary body files to avoid shell interpretation issues.
 - PR contains the closing keyword in the description, not in the commit.
 - All selected issue template sections and PR template sections are properly filled out.
 - The branch is based on the latest main (unless exception justified and documented in the PR).
 - The PR has at least one valid label, relevant reviewers when appropriate, and all CI checks pass.
 - For BMAD story issues, PR traceability points to the GitHub issue contract and does not let local BMAD artifacts override it.
 - For GitHub-only work, traceability is issue -> branch -> commits -> PR -> merge, with no BMAD or back-sync dependency.
+- The issue, branch, and PR identities were resolved before mutation; existing
+  work was resumed and no duplicate resource was created.
+- Follow-up issues were created only after repository-wide duplicate search and
+  explicit user approval.
 - For architecture, config, security, data, or operational debt, the PR risk
   section links a follow-up issue or explains why no follow-up is needed.
 - For backend changes, avoid introducing new ad hoc env resolvers, duplicated
@@ -219,11 +276,7 @@ When generating the final issue or PR body, preserve GitHub autolinking: do not 
 #!/bin/bash
 set -e
 
-# 1. Sync main (recommended)
-git checkout main
-git pull --rebase origin main
-
-# 2. Use an existing primary issue
+# 1. Use an existing primary issue
 ISSUE_NUMBER="$1"
 SHORT_DESC="$2"
 if [ -z "$ISSUE_NUMBER" ] || [ -z "$SHORT_DESC" ]; then
@@ -231,19 +284,24 @@ if [ -z "$ISSUE_NUMBER" ] || [ -z "$SHORT_DESC" ]; then
   exit 1
 fi
 
-# 3. Create branch (conventional name)
+# 2. Resolve linked PRs and local/remote branches first.
+# If an open PR exists, checkout its head branch and update that PR.
+# If the suggested/matching branch exists, checkout it.
+# Only when neither exists, sync main and create the branch below.
+git checkout main
+git pull --rebase origin main
 BRANCH_NAME="feature/DC-${ISSUE_NUMBER}-${SHORT_DESC}"
 git checkout -b "$BRANCH_NAME"
 
-# 4. Make your changes manually, then:
+# 3. Make your changes manually, then:
 # git add ...
 # git commit -m "<conventional commit message>"
 # (Check commitlint output)
 
-# 5. Push branch
+# 4. Push branch
 git push --set-upstream origin "$BRANCH_NAME"
 
-# 6. Create PR with a body file filled from .github/PULL_REQUEST_TEMPLATE.md
+# 5. Recheck that no PR exists for the issue/head, then create at most one PR
 gh pr create --base main --head "$BRANCH_NAME" --title "$3" --body-file "$4"
 # Add valid labels and reviewers after PR creation.
 ```
