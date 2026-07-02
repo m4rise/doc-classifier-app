@@ -35,13 +35,16 @@ describe('UploadDocumentUseCase', () => {
       createPending,
       failProcessing: jest.fn(),
       findByIdForUser: jest.fn(),
+      hardDelete: jest.fn(),
       listForUser: jest.fn(),
+      softDeleteForUser: jest.fn(),
     };
     const upload: jest.MockedFunction<FileStorage['upload']> = jest.fn(() => {
       calls.push('upload');
       return Promise.resolve();
     });
     const fileStorage: FileStorage = {
+      delete: jest.fn(),
       download: jest.fn(),
       getSignedUrl: jest.fn(() => Promise.resolve('file:///tmp/document')),
       upload,

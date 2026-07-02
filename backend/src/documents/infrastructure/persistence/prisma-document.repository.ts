@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { DocumentStatus } from '../../../generated/prisma';
+import { DocumentStatus, Prisma } from '../../../generated/prisma';
 import { PrismaService } from '../../../shared/infrastructure/database/prisma.service';
 import {
   CompletedProcessingResult,
@@ -10,6 +10,7 @@ import {
   ListDocumentsRepositoryInput,
   ListDocumentsRepositoryResult,
   ProcessingDocument,
+  SoftDeletedDocument,
   UploadedDocument,
 } from '../../application/ports/document.repository.port';
 import {
@@ -62,6 +63,7 @@ export class PrismaDocumentRepository extends DocumentRepository {
         where: {
           id: documentId,
           status: DocumentStatus.PENDING,
+          deletedAt: null,
         },
         data: { status: DocumentStatus.PROCESSING },
       });
@@ -90,6 +92,7 @@ export class PrismaDocumentRepository extends DocumentRepository {
         where: {
           id: documentId,
           status: DocumentStatus.PROCESSING,
+          deletedAt: null,
         },
         data: { status: DocumentStatus.DONE },
       });
@@ -124,6 +127,7 @@ export class PrismaDocumentRepository extends DocumentRepository {
         where: {
           id: documentId,
           status: DocumentStatus.PROCESSING,
+          deletedAt: null,
         },
         data: { status: DocumentStatus.FAILED },
       });
@@ -162,6 +166,7 @@ export class PrismaDocumentRepository extends DocumentRepository {
       where: {
         id: documentId,
         userId,
+        deletedAt: null,
       },
       select: documentDetailSelection,
     });
@@ -169,47 +174,99 @@ export class PrismaDocumentRepository extends DocumentRepository {
     return document ? mapDocumentDetail(document) : null;
   }
 
+  softDeleteForUser(
+    documentId: string,
+    userId: string,
+  ): Promise<SoftDeletedDocument | null> {
+    return this.prisma.$transaction(async (transaction) => {
+      const transition = await transaction.document.updateMany({
+        where: {
+          id: documentId,
+          userId,
+          deletedAt: null,
+        },
+        data: { deletedAt: new Date() },
+      });
+
+      if (transition.count !== 1) {
+        return null;
+      }
+
+      return transaction.document.findUniqueOrThrow({
+        where: { id: documentId },
+        select: {
+          id: true,
+          storageKey: true,
+        },
+      });
+    });
+  }
+
+  async hardDelete(documentId: string, userId: string): Promise<void> {
+    const deletion = await this.prisma.document.deleteMany({
+      where: {
+        id: documentId,
+        userId,
+        deletedAt: { not: null },
+      },
+    });
+
+    if (deletion.count !== 1) {
+      throw new Error(
+        'Owned soft-deleted document could not be physically deleted',
+      );
+    }
+  }
+
   listForUser(
     input: ListDocumentsRepositoryInput,
   ): Promise<ListDocumentsRepositoryResult | null> {
-    return this.prisma.$transaction(async (transaction) => {
-      const cursor = input.cursor
-        ? {
-            userId_createdAt_id: {
-              userId: input.userId,
-              createdAt: input.cursor.createdAt,
-              id: input.cursor.id,
-            },
-          }
-        : undefined;
+    return this.prisma.$transaction(
+      async (transaction) => {
+        const cursor = input.cursor
+          ? {
+              userId_createdAt_id: {
+                userId: input.userId,
+                createdAt: input.cursor.createdAt,
+                id: input.cursor.id,
+              },
+            }
+          : undefined;
 
-      if (cursor) {
-        const cursorDocument = await transaction.document.findUnique({
-          where: cursor,
-          select: { id: true },
+        if (cursor) {
+          const cursorDocument = await transaction.document.findFirst({
+            where: {
+              userId: input.userId,
+              createdAt: input.cursor?.createdAt,
+              id: input.cursor?.id,
+              deletedAt: null,
+            },
+            select: { id: true },
+          });
+
+          if (!cursorDocument) {
+            return null;
+          }
+        }
+
+        const documents = await transaction.document.findMany({
+          where: { userId: input.userId, deletedAt: null },
+          orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+          take: input.limit + 1,
+          cursor,
+          skip: cursor ? 1 : undefined,
+          select: documentListItemSelection,
+        });
+        const total = await transaction.document.count({
+          where: { userId: input.userId, deletedAt: null },
         });
 
-        if (!cursorDocument) {
-          return null;
-        }
-      }
-
-      const documents = await transaction.document.findMany({
-        where: { userId: input.userId },
-        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-        take: input.limit + 1,
-        cursor,
-        skip: cursor ? 1 : undefined,
-        select: documentListItemSelection,
-      });
-      const total = await transaction.document.count({
-        where: { userId: input.userId },
-      });
-
-      return {
-        documents: documents.map(mapDocumentListItem),
-        total,
-      };
-    });
+        return {
+          documents: documents.map(mapDocumentListItem),
+          total,
+        };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead },
+    );
   }
 }

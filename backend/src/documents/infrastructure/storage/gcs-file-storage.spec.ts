@@ -9,11 +9,13 @@ describe('GcsFileStorage', () => {
 
   function createStorage() {
     const save = jest.fn(() => Promise.resolve());
+    const deleteObject = jest.fn(() => Promise.resolve());
     const download = jest.fn(() =>
       Promise.resolve([Buffer.from('%PDF-1.4', 'utf8')]),
     );
     const getSignedUrl = jest.fn(() => Promise.resolve(['https://signed-url']));
     const file = {
+      delete: deleteObject,
       download,
       getSignedUrl,
       save,
@@ -32,7 +34,15 @@ describe('GcsFileStorage', () => {
       storage,
     );
 
-    return { bucket, download, fileStorage, getSignedUrl, save, storage };
+    return {
+      bucket,
+      deleteObject,
+      download,
+      fileStorage,
+      getSignedUrl,
+      save,
+      storage,
+    };
   }
 
   it('uploads objects with content type, CRC validation and no-overwrite precondition', async () => {
@@ -83,8 +93,18 @@ describe('GcsFileStorage', () => {
     expect(download).toHaveBeenCalledTimes(1);
   });
 
+  it('deletes a GCS object idempotently', async () => {
+    const { bucket, deleteObject, fileStorage, storage } = createStorage();
+
+    await expect(fileStorage.delete(storageKey)).resolves.toBeUndefined();
+
+    expect(storage.bucket).toHaveBeenCalledWith('doc-classifier-documents');
+    expect(bucket.file).toHaveBeenCalledWith(storageKey);
+    expect(deleteObject).toHaveBeenCalledWith({ ignoreNotFound: true });
+  });
+
   it('rejects invalid object keys before calling GCS', async () => {
-    const { fileStorage, save } = createStorage();
+    const { deleteObject, fileStorage, save } = createStorage();
 
     await expect(
       fileStorage.upload('../invoice.pdf', Buffer.from('x'), 'application/pdf'),
@@ -95,6 +115,10 @@ describe('GcsFileStorage', () => {
     await expect(fileStorage.download('../invoice.pdf')).rejects.toThrow(
       'Invalid storage key',
     );
+    await expect(fileStorage.delete('../invoice.pdf')).rejects.toThrow(
+      'Invalid storage key',
+    );
+    expect(deleteObject).not.toHaveBeenCalled();
   });
 
   it('rejects signed URL TTLs outside the 900-second supported range', async () => {

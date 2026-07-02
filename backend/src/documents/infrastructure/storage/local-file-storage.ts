@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { mkdir, readFile, writeFile } from 'fs/promises';
+import { mkdir, readFile, rm, writeFile } from 'fs/promises';
 import { resolve, sep } from 'path';
 import { pathToFileURL } from 'url';
 import { FileStorage } from '../../application/ports/file-storage.port';
@@ -29,6 +29,11 @@ export class LocalFileStorage implements FileStorage {
   async download(key: string): Promise<Buffer> {
     assertValidDocumentStorageKey(key);
     return readFile(this.resolveStoragePath(key));
+  }
+
+  async delete(key: string): Promise<void> {
+    assertValidDocumentStorageKey(key);
+    await rm(this.resolveStoragePath(key), { force: true });
   }
 
   getSignedUrl(key: string, ttlSeconds: number): Promise<string> {

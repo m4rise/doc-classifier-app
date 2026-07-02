@@ -24,6 +24,11 @@ export interface ProcessingDocument {
   mimeType: string;
 }
 
+export interface SoftDeletedDocument {
+  id: string;
+  storageKey: string;
+}
+
 export interface CompletedProcessingResult extends DocumentAnalysisResult {
   needsReview: boolean;
 }
@@ -108,6 +113,13 @@ export abstract class DocumentRepository {
     documentId: string,
     userId: string,
   ): Promise<DocumentDetail | null>;
+
+  abstract softDeleteForUser(
+    documentId: string,
+    userId: string,
+  ): Promise<SoftDeletedDocument | null>;
+
+  abstract hardDelete(documentId: string, userId: string): Promise<void>;
 
   /**
    * Returns at most `limit + 1` owner-scoped documents for lookahead.

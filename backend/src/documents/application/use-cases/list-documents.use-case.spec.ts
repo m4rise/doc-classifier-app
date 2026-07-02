@@ -33,7 +33,9 @@ describe('ListDocumentsUseCase', () => {
       createPending: jest.fn(),
       failProcessing: jest.fn(),
       findByIdForUser: jest.fn(),
+      hardDelete: jest.fn(),
       listForUser,
+      softDeleteForUser: jest.fn(),
     };
 
     return {

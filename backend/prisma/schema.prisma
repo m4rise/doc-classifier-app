@@ -91,10 +91,12 @@ model Document {
   status           DocumentStatus    @default(PENDING)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
   processingResult ProcessingResult?
 
   @@unique([userId, createdAt, id])
   @@index([userId])
+  @@index([userId, deletedAt, createdAt, id])
   @@map("documents")
 }
 

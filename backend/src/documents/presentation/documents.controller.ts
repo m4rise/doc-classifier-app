@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -24,6 +25,7 @@ import { AppConfiguration } from '../../config/app.config';
 import type { AuthenticatedRequest } from '../../auth/presentation/authenticated-request';
 import { JwtAuthGuard } from '../../auth/infrastructure/passport/jwt-auth.guard';
 import { createUploadThrottleOptions } from '../../shared/infrastructure/rate-limiting/throttle.config';
+import { DeleteDocumentUseCase } from '../application/use-cases/delete-document.use-case';
 import { GetDocumentUseCase } from '../application/use-cases/get-document.use-case';
 import { ListDocumentsUseCase } from '../application/use-cases/list-documents.use-case';
 import { SynchronousDocumentProcessingWorkflow } from '../application/workflows/synchronous-document-processing.workflow';
@@ -51,6 +53,7 @@ export class DocumentsController {
 
   constructor(
     private readonly synchronousDocumentProcessing: SynchronousDocumentProcessingWorkflow,
+    private readonly deleteDocumentUseCase: DeleteDocumentUseCase,
     private readonly getDocumentUseCase: GetDocumentUseCase,
     private readonly listDocumentsUseCase: ListDocumentsUseCase,
     configService: ConfigService<AppConfiguration, true>,
@@ -113,6 +116,23 @@ export class DocumentsController {
     } catch (error) {
       if (error instanceof InvalidDocumentCursorError) {
         throw new BadRequestException(error.message);
+      }
+
+      throw error;
+    }
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.OK)
+  async deleteById(
+    @Req() req: AuthenticatedRequest,
+    @Param('id') documentId: string,
+  ): Promise<void> {
+    try {
+      await this.deleteDocumentUseCase.execute(documentId, req.user.userId);
+    } catch (error) {
+      if (error instanceof DocumentNotFoundError) {
+        throw new NotFoundException(error.message);
       }
 
       throw error;
