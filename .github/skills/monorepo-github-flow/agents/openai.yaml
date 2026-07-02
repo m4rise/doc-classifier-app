@@ -1,4 +1,4 @@
 interface:
   display_name: "Monorepo GitHub Flow"
   short_description: "GitHub-only, diff-driven, and BMAD PR mechanics"
-  default_prompt: "Use $monorepo-github-flow to turn the request or current diff into a standards-compliant GitHub issue, branch, commit, and PR flow."
+  default_prompt: "Use $monorepo-github-flow to resolve and resume any existing issue, linked PR, and local or remote branch before creating GitHub resources. Create only missing, authorized resources, never duplicates or unapproved follow-up issues."

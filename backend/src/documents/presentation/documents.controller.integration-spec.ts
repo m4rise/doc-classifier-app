@@ -9,6 +9,8 @@ import { DOCUMENT_ANALYZER } from '../application/documents.tokens';
 import { DocumentAnalysisTimeoutError } from '../application/errors/document-analysis.errors';
 import { DocumentStatus } from '../../generated/prisma';
 import { PrismaService } from '../../shared/infrastructure/database/prisma.service';
+import { PrismaDocumentRepository } from '../infrastructure/persistence/prisma-document.repository';
+import { LocalFileStorage } from '../infrastructure/storage/local-file-storage';
 import { asErrorMessageBody } from '../../../test/integration-http.helpers';
 import type {
   HttpResponseBody,
@@ -155,6 +157,8 @@ describe('DocumentsController integration', () => {
   const originalLocalUploadDir = process.env.LOCAL_UPLOAD_DIR;
   const uploadDir = join(process.cwd(), 'uploads', 'jest-documents-upload');
   let app: NestExpressApplication;
+  let documentRepository: PrismaDocumentRepository;
+  let localFileStorage: LocalFileStorage;
   let prisma: PrismaService;
   const successfulAnalysis = {
     extractedText: 'Invoice #2026-001',
@@ -209,7 +213,13 @@ describe('DocumentsController integration', () => {
     app = moduleFixture.createNestApplication<NestExpressApplication>();
     app.set('trust proxy', 1);
     await app.init();
+    documentRepository = app.get(PrismaDocumentRepository);
+    localFileStorage = app.get(LocalFileStorage);
     prisma = app.get(PrismaService);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   beforeEach(async () => {
@@ -349,6 +359,196 @@ describe('DocumentsController integration', () => {
       .get(`/api/v1/documents/${documentId}`)
       .set('Authorization', `Bearer ${otherUser.accessToken}`)
       .expect(404);
+  });
+
+  it('DELETE /api/v1/documents/:id removes storage, DB data, and future access', async () => {
+    const { accessToken } = await registerAndLogin(
+      app,
+      `document-delete.${Date.now()}@example.com`,
+    );
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/api/v1/documents/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', createValidPdfBuffer(), {
+        filename: 'delete-me.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+    const documentId = (uploadResponse.body as UploadDocumentResponseBody).id;
+    const persistedDocument = await prisma.document.findUniqueOrThrow({
+      where: { id: documentId },
+      select: { storageKey: true },
+    });
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    await expect(
+      prisma.document.findUnique({ where: { id: documentId } }),
+    ).resolves.toBeNull();
+    await expect(
+      prisma.processingResult.findUnique({ where: { documentId } }),
+    ).resolves.toBeNull();
+    await expect(
+      stat(join(uploadDir, persistedDocument.storageKey)),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
+    await request(app.getHttpServer())
+      .get(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(404);
+
+    const listResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    expect(listResponse.body).toMatchObject({ data: [], total: 0 });
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(404);
+  });
+
+  it('DELETE /api/v1/documents/:id returns 404 without deleting another user document', async () => {
+    const owner = await registerAndLogin(
+      app,
+      `document-delete-owner.${Date.now()}@example.com`,
+    );
+    const otherUser = await registerAndLogin(
+      app,
+      `document-delete-other.${Date.now()}@example.com`,
+    );
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/api/v1/documents/upload')
+      .set('Authorization', `Bearer ${owner.accessToken}`)
+      .attach('file', createValidPdfBuffer(), {
+        filename: 'private-delete.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+    const documentId = (uploadResponse.body as UploadDocumentResponseBody).id;
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${otherUser.accessToken}`)
+      .expect(404);
+
+    await expect(
+      prisma.document.findUnique({ where: { id: documentId } }),
+    ).resolves.toMatchObject({ id: documentId, deletedAt: null });
+  });
+
+  it('keeps a failed storage deletion as an inaccessible retryable tombstone', async () => {
+    const { accessToken } = await registerAndLogin(
+      app,
+      `document-delete-storage-failure.${Date.now()}@example.com`,
+    );
+    const uploadResponse = await request(app.getHttpServer())
+      .post('/api/v1/documents/upload')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .attach('file', createValidPdfBuffer(), {
+        filename: 'retry-delete.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+    const documentId = (uploadResponse.body as UploadDocumentResponseBody).id;
+    const persistedDocument = await prisma.document.findUniqueOrThrow({
+      where: { id: documentId },
+      select: { storageKey: true },
+    });
+    jest
+      .spyOn(localFileStorage, 'delete')
+      .mockRejectedValueOnce(new Error('storage unavailable'));
+
+    await request(app.getHttpServer())
+      .delete(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+
+    const tombstone = await prisma.document.findUnique({
+      where: { id: documentId },
+    });
+    expect(tombstone?.id).toBe(documentId);
+    expect(tombstone?.deletedAt).toBeInstanceOf(Date);
+    await expect(
+      stat(join(uploadDir, persistedDocument.storageKey)),
+    ).resolves.toBeDefined();
+    await request(app.getHttpServer())
+      .get(`/api/v1/documents/${documentId}`)
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(404);
+
+    const listResponse = await request(app.getHttpServer())
+      .get('/api/v1/documents')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .expect(200);
+    expect(listResponse.body).toMatchObject({ data: [], total: 0 });
+  });
+
+  it('does not claim a soft-deleted pending document for processing', async () => {
+    const { user } = await registerAndLogin(
+      app,
+      `document-processing-tombstone.${Date.now()}@example.com`,
+    );
+    const document = await prisma.document.create({
+      data: {
+        userId: user.id,
+        originalName: 'pending-delete.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 128,
+        status: DocumentStatus.PENDING,
+        deletedAt: new Date(),
+      },
+    });
+
+    await expect(
+      documentRepository.beginProcessing(document.id),
+    ).resolves.toBeNull();
+    await expect(
+      prisma.document.findUnique({ where: { id: document.id } }),
+    ).resolves.toMatchObject({
+      status: DocumentStatus.PENDING,
+      deletedAt: document.deletedAt,
+    });
+  });
+
+  it('keeps physical deletion scoped to the tombstone owner', async () => {
+    const owner = await registerAndLogin(
+      app,
+      `document-hard-delete-owner.${Date.now()}@example.com`,
+    );
+    const otherUser = await registerAndLogin(
+      app,
+      `document-hard-delete-other.${Date.now()}@example.com`,
+    );
+    const document = await prisma.document.create({
+      data: {
+        userId: owner.user.id,
+        originalName: 'owned-tombstone.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 128,
+        status: DocumentStatus.DONE,
+        deletedAt: new Date(),
+      },
+    });
+
+    await expect(
+      documentRepository.hardDelete(document.id, otherUser.user.id),
+    ).rejects.toThrow(
+      'Owned soft-deleted document could not be physically deleted',
+    );
+    await expect(
+      prisma.document.findUnique({ where: { id: document.id } }),
+    ).resolves.toMatchObject({ id: document.id });
+
+    await expect(
+      documentRepository.hardDelete(document.id, owner.user.id),
+    ).resolves.toBeUndefined();
+    await expect(
+      prisma.document.findUnique({ where: { id: document.id } }),
+    ).resolves.toBeNull();
   });
 
   it('GET /api/v1/documents lists only owner documents with essential metadata', async () => {

@@ -7,12 +7,12 @@ Format : [MADR](https://adr.github.io/madr/) - chaque ADR documente le contexte,
 
 ## ARCH - Architecture fondamentale
 
-| ADR                                                               | Titre                                                       | Statut                                              |
-| ----------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------------------- |
-| [ADR-ARCH-001](./ADR-ARCH-001-monorepo-structure.md)              | Structure monorepo plat (`backend/` + `frontend/`)          | Accepted                                            |
-| [ADR-ARCH-002](./ADR-ARCH-002-backend-vertical-slice.md)          | Architecture backend - Vertical Slice + Clean Light         | Accepted                                            |
-| [ADR-ARCH-003](./ADR-ARCH-003-llm-provider-abstraction.md)        | Abstraction du fournisseur LLM                            | Acceptée (précisée par ADR-ARCH-007)                |
-| [ADR-ARCH-004](./ADR-ARCH-004-upload-processing-state-machine.md) | Pipeline synchrone MVP - state machine upload               | Accepted (superseded partiellement par ADR-EVO-001) |
+| ADR                                                               | Titre                                                      | Statut                                              |
+| ----------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------- |
+| [ADR-ARCH-001](./ADR-ARCH-001-monorepo-structure.md)              | Structure monorepo plat (`backend/` + `frontend/`)         | Accepted                                            |
+| [ADR-ARCH-002](./ADR-ARCH-002-backend-vertical-slice.md)          | Architecture backend - Vertical Slice + Clean Light        | Accepted                                            |
+| [ADR-ARCH-003](./ADR-ARCH-003-llm-provider-abstraction.md)        | Abstraction du fournisseur LLM                             | Acceptée (précisée par ADR-ARCH-007)                |
+| [ADR-ARCH-004](./ADR-ARCH-004-upload-processing-state-machine.md) | Pipeline synchrone MVP - state machine upload              | Accepted (superseded partiellement par ADR-EVO-001) |
 | [ADR-ARCH-005](./ADR-ARCH-005-gemini-flash-model-selection.md)    | Sélection du modèle Gemini Flash                           | Acceptée                                            |
 | [ADR-ARCH-006](./ADR-ARCH-006-synchronous-processing-outcome.md)  | Persistance du résultat du traitement synchrone            | Acceptée                                            |
 | [ADR-ARCH-007](./ADR-ARCH-007-consumer-owned-ai-ports.md)         | Ports IA détenus par les slices consommatrices et adapters | Acceptée                                            |
@@ -44,11 +44,12 @@ Format : [MADR](https://adr.github.io/madr/) - chaque ADR documente le contexte,
 
 ## DATA - Persistance & données
 
-| ADR                                                          | Titre                                     | Statut   |
-| ------------------------------------------------------------ | ----------------------------------------- | -------- |
-| [ADR-DATA-001](./ADR-DATA-001-prisma-migrations-strategy.md) | Stratégie migrations Prisma sur Cloud Run | Accepted |
-| [ADR-DATA-002](./ADR-DATA-002-prisma-version-7.md)           | Adoption de Prisma 7 avec driver adapter  | Accepted |
+| ADR                                                                 | Titre                                                 | Statut   |
+| ------------------------------------------------------------------- | ----------------------------------------------------- | -------- |
+| [ADR-DATA-001](./ADR-DATA-001-prisma-migrations-strategy.md)        | Stratégie migrations Prisma sur Cloud Run             | Accepted |
+| [ADR-DATA-002](./ADR-DATA-002-prisma-version-7.md)                  | Adoption de Prisma 7 avec driver adapter              | Accepted |
 | [ADR-DATA-003](./ADR-DATA-003-stable-document-cursor-pagination.md) | Pagination stable des documents par curseur composite | Accepted |
+| [ADR-DATA-004](./ADR-DATA-004-document-deletion-consistency.md)     | Cohérence de suppression DB et stockage objet         | Accepted |
 
 ---
 

@@ -65,7 +65,9 @@ describe('ProcessDocumentUseCase', () => {
       createPending: jest.fn(),
       failProcessing,
       findByIdForUser: jest.fn(),
+      hardDelete: jest.fn(),
       listForUser: jest.fn(),
+      softDeleteForUser: jest.fn(),
     };
     const download: jest.MockedFunction<FileStorage['download']> = jest.fn(
       () => {
@@ -74,6 +76,7 @@ describe('ProcessDocumentUseCase', () => {
       },
     );
     const fileStorage: FileStorage = {
+      delete: jest.fn(),
       download,
       getSignedUrl: jest.fn(),
       upload: jest.fn(),

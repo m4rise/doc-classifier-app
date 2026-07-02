@@ -11,6 +11,11 @@ For doc-classifier story issues, treat GitHub as the operational source of truth
 
 Use this skill for implementation. Use `monorepo-github-flow` for branch, commit, issue, and PR mechanics. If both skills apply, this skill decides what to implement and how to verify it; `monorepo-github-flow` decides how to name branches, write commits, fill templates, keep GitHub-facing content in English, and link the PR.
 
+Resume existing work before creating anything. An issue number identifies a work
+stream, not permission to create a new branch or PR. GitHub issue links, PR
+development links, PR head branches, comments, and remote branches must be
+resolved before any GitHub or Git mutation.
+
 ## Source Priority
 
 Load context in this order:
@@ -51,24 +56,58 @@ acceptance_criteria:
 definition_of_ready:
 definition_of_done:
 implementation_notes:
+linked_pr:
+linked_pr_state:
+linked_pr_head:
+local_branch:
+remote_branch:
+resume_decision:
 ```
 
 Extract `story_id` from titles like `[2.5] Logout Use Case`. Extract `bmad_source` from the `BMAD Source` field. Use the suggested branch from the issue when present; otherwise derive `feature/DC-<issue-number>-<short-slug>`.
 
 If AC or DoD are missing from GitHub, stop and ask the user before implementation. Use BMAD Source only to draft a clarification or proposed issue update, never as an implicit replacement for the GitHub contract. If BMAD Source is missing but the GitHub issue has enough AC and DoD, continue and note the traceability gap.
 
+## Existing Work Resolution Gate
+
+Complete this gate before editing code, changing branches, creating commits, or
+creating/updating GitHub resources:
+
+1. Read the issue body, comments, timeline/development links, and linked PRs.
+2. Resolve every PR that closes, implements, or is explicitly linked to the
+   issue. Inspect its state and head branch; do not infer PR absence from the
+   local worktree, reflog, or issue body alone.
+3. Check whether the PR head branch and the issue's `Suggested Branch` exist
+   locally or on the remote.
+4. Record one `resume_decision` using this precedence:
+   - open PR: resume its head branch and existing PR;
+   - no open PR but an existing matching remote/local branch: resume that branch;
+   - closed-unmerged PR: stop and ask whether to reopen it or start replacement
+     work;
+   - merged PR: if the issue is still open, stop and reconcile the inconsistent
+     state; genuinely new scope requires a new issue;
+   - issue only: use or create the suggested/derived branch.
+
+The linked open PR head branch overrides stale `Suggested Branch` guidance.
+Never create a replacement issue, parallel branch, or duplicate PR to make the
+local state look cleaner.
+
 ## Implementation Workflow
 
 1. Confirm the issue is open or explicitly requested despite being closed.
 2. Verify DoR and prerequisites from GitHub first, then code reality.
-3. Check the current branch and worktree before changing files.
-4. Create or switch to the suggested branch using `monorepo-github-flow` conventions.
+3. Complete the Existing Work Resolution Gate and report the selected existing
+   issue, branch, and PR before mutation.
+4. Resume the selected branch/PR, or create the suggested branch only when the
+   gate proves no resumable work exists and the user authorized implementation.
 5. Inspect the affected code and nearby tests before planning edits.
 6. Implement only the issue scope, preserving existing architecture and patterns.
 7. Add or update tests that prove the AC and important edge cases.
 8. Run the smallest meaningful verification first, then broader tests when risk warrants.
 9. Compare the final diff against every AC and DoD item.
-10. Prepare PR-ready notes with summary, tests run, risks, and `Closes #<issue-number>`.
+10. Update the existing PR when one was resolved. Otherwise prepare PR-ready
+    notes with summary, tests run, risks, and `Closes #<issue-number>`; create a
+    PR only when the user's request authorizes creation.
 
 ## Architecture Drift Guardrail
 
@@ -87,6 +126,10 @@ Prefer:
   narrow unknown data;
 - explicit follow-up issues for temporary compromises documented in ADRs or PR
   risk sections.
+
+Follow-up debt does not authorize automatic issue creation. Search open and
+closed issues first, link a matching issue when one exists, and otherwise draft
+the proposed follow-up for explicit user approval before creating it.
 
 When writing final PR body content, keep GitHub references as plain text rather than inline code. Do not wrap issue numbers, PR numbers, branch names, closing keywords, or `Related Work` values in backticks, because that disables GitHub autolinking.
 
@@ -133,6 +176,10 @@ Stop and ask the user when:
 - prerequisites are clearly unmet and cannot be satisfied within the issue scope;
 - the worktree contains unrelated conflicting edits that make the implementation unsafe;
 - the issue asks for a destructive migration, data loss, or security-sensitive change without enough acceptance detail.
+- a linked PR is closed-unmerged, or a merged PR conflicts with the issue's
+  active state, and the intended continuation cannot be determined safely;
+- multiple plausible PRs or branches exist and GitHub does not identify a
+  single active work stream.
 
 ## Completion Checklist
 
@@ -145,3 +192,7 @@ Before final response or PR creation, confirm:
 - PR notes include summary, verification, and `Closes #<issue-number>`.
 - Branch, commit, PR formatting, and GitHub-facing language follow `monorepo-github-flow`.
 - Final PR body preserves GitHub autolinking by leaving issue/PR references, branch names, and `Related Work` values unquoted and without backticks.
+- Existing issue/PR/branch resolution is recorded, and no duplicate resource
+  was created.
+- Any new follow-up issue was searched for first and explicitly authorized by
+  the user.

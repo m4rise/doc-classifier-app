@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { MulterModule } from '@nestjs/platform-express';
+import { PinoLogger } from 'nestjs-pino';
 import { AuthModule } from '../auth/auth.module';
 import { AppConfiguration } from '../config/app.config';
 import { LlmModule } from '../llm/llm.module';
@@ -17,6 +18,7 @@ import { DocumentAnalyzer } from './application/ports/document-analyzer.port';
 import { DocumentRepository } from './application/ports/document.repository.port';
 import { FileStorage } from './application/ports/file-storage.port';
 import { FileTypeDetector } from './application/ports/file-type-detector.port';
+import { DeleteDocumentUseCase } from './application/use-cases/delete-document.use-case';
 import { GetDocumentUseCase } from './application/use-cases/get-document.use-case';
 import { ListDocumentsUseCase } from './application/use-cases/list-documents.use-case';
 import { ProcessDocumentUseCase } from './application/use-cases/process-document.use-case';
@@ -120,6 +122,22 @@ const BYTES_PER_MEGABYTE = 1024 * 1024;
       useFactory: (configService: ConfigService<AppConfiguration, true>) =>
         configService.getOrThrow('documents', { infer: true }).download
           .signedUrlTtlSeconds,
+    },
+    {
+      provide: DeleteDocumentUseCase,
+      useFactory: (
+        documentRepository: DocumentRepository,
+        fileStorage: FileStorage,
+        logger: PinoLogger,
+      ) => {
+        logger.setContext(DeleteDocumentUseCase.name);
+        return new DeleteDocumentUseCase(
+          documentRepository,
+          fileStorage,
+          logger,
+        );
+      },
+      inject: [DOCUMENT_REPOSITORY, FILE_STORAGE, PinoLogger],
     },
     {
       provide: ProcessDocumentUseCase,

@@ -56,11 +56,14 @@ describe('GetDocumentUseCase', () => {
       createPending: jest.fn(),
       failProcessing: jest.fn(),
       findByIdForUser,
+      hardDelete: jest.fn(),
       listForUser: jest.fn(),
+      softDeleteForUser: jest.fn(),
     };
     const getSignedUrl: jest.MockedFunction<FileStorage['getSignedUrl']> =
       jest.fn(() => Promise.resolve(signedUrl));
     const fileStorage: FileStorage = {
+      delete: jest.fn(),
       download: jest.fn(),
       getSignedUrl,
       upload: jest.fn(),

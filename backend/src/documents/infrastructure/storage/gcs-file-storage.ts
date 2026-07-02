@@ -19,7 +19,12 @@ interface GcsBucket {
 interface GcsFile {
   save(buffer: Buffer, options: GcsSaveOptions): Promise<unknown>;
   download(): Promise<[Buffer]>;
+  delete(options: GcsDeleteOptions): Promise<unknown>;
   getSignedUrl(options: GcsSignedUrlOptions): Promise<[string]>;
+}
+
+interface GcsDeleteOptions {
+  ignoreNotFound: true;
 }
 
 interface GcsSaveOptions {
@@ -82,6 +87,13 @@ export class GcsFileStorage implements FileStorage {
       .download();
 
     return buffer;
+  }
+
+  async delete(key: string): Promise<void> {
+    assertValidDocumentStorageKey(key);
+    await this.storage.bucket(this.bucketName).file(key).delete({
+      ignoreNotFound: true,
+    });
   }
 
   async getSignedUrl(key: string, ttlSeconds: number): Promise<string> {
